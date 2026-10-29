@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>NeuroNexus Sensor Logger</title>
+<style>
+body{font-family:system-ui,sans-serif;max-width:760px;margin:2rem auto;padding:0 1rem;line-height:1.5;color:#172033}
+main{border:1px solid #d9e0ea;border-radius:18px;padding:1.2rem}
+button{border:0;border-radius:10px;padding:.75rem 1rem;margin:.3rem .2rem .3rem 0;background:#164e63;color:white;font-weight:650}
+button:disabled{opacity:.45} .note{background:#eef6f8;padding:.8rem;border-radius:10px}
+#status{font-weight:600}
+</style>
+</head>
+<body>
+<main>
+<h1>🧠 NeuroNexus Sensor Logger</h1>
+<p>This companion page records phone accelerometer readings and exports a CSV for the research prototype. It does not upload the data anywhere.</p>
+<div class="note"><strong>Safety and privacy:</strong> Only record your own data or data you have explicit permission to collect. Do not use this as a medical test. For gait recording, use a clear level path, secure the phone consistently, and stop if you feel unsteady. Browser sensor access generally requires HTTPS and permission.</div>
+<p id="status">Status: not recording</p>
+<p>Samples: <span id="count">0</span></p>
+<button id="start">Start recording</button><button id="stop" disabled>Stop recording</button><button id="download" disabled>Download CSV</button><button id="clear">Clear samples</button>
+<p>Hold the phone in a consistent position. Record about 10–20 seconds for a short walking sample or 10–30 seconds for a resting-motion sample. The app cannot validate phone placement.</p>
+</main>
+<script>
+(() => {
+ let rows=[], startAt=null, recording=false;
+ const status=document.getElementById('status'), count=document.getElementById('count');
+ const start=document.getElementById('start'), stop=document.getElementById('stop'), download=document.getElementById('download'), clear=document.getElementById('clear');
+ function update(){count.textContent=rows.length; start.disabled=recording; stop.disabled=!recording; download.disabled=rows.length===0;}
+ function onMotion(e){
+   if(!recording) return;
+   const a=e.accelerationIncludingGravity || e.acceleration;
+   if(!a || a.x===null || a.y===null || a.z===null) return;
+   rows.push({timestamp:(performance.now()-startAt)/1000, ax:a.x, ay:a.y, az:a.z});
+   if(rows.length%10===0) update();
+ }
+ start.addEventListener('click', async()=>{
+   if(!('DeviceMotionEvent' in window)){status.textContent='Status: this browser/device does not expose motion sensors.';return;}
+   try{
+     if(typeof DeviceMotionEvent.requestPermission==='function'){
+       const permission=await DeviceMotionEvent.requestPermission();
+       if(permission!=='granted'){status.textContent='Status: motion permission was not granted.';return;}
+     }
+     recording=true; startAt=performance.now(); window.addEventListener('devicemotion',onMotion);
+     status.textContent='Status: recording — keep the phone steady or perform your planned safe task.'; update();
+   }catch(err){status.textContent='Status: unable to start sensor capture. Use HTTPS and allow sensor permission.';}
+ });
+ stop.addEventListener('click',()=>{recording=false;window.removeEventListener('devicemotion',onMotion);status.textContent='Status: stopped. Download the CSV, then upload it to NeuroNexus.';update();});
+ download.addEventListener('click',()=>{
+   if(!rows.length)return;
+   const csv='timestamp,ax,ay,az\n'+rows.map(r=>[r.timestamp.toFixed(5),r.ax,r.ay,r.az].join(',')).join('\n');
+   const blob=new Blob([csv],{type:'text/csv;charset=utf-8;'}), url=URL.createObjectURL(blob), a=document.createElement('a');
+   a.href=url;a.download='neuronexus_sensor_capture.csv';a.click();URL.revokeObjectURL(url);
+ });
+ clear.addEventListener('click',()=>{recording=false;window.removeEventListener('devicemotion',onMotion);rows=[];status.textContent='Status: samples cleared from this page.';update();});
+ update();
+})();
+</script>
+</body>
+</html>
