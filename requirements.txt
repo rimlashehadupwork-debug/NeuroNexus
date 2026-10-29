@@ -1,0 +1,8 @@
+streamlit
+numpy
+scipy
+librosa
+soundfile
+plotly
+pandas
+pytest
