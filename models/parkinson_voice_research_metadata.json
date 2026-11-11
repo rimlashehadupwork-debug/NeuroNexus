@@ -1,0 +1,105 @@
+{
+  "model_name": "Parkinson's voice research model",
+  "version": "2.0.0",
+  "status": "experimental_not_for_patient_predictions",
+  "dataset_rows": 1040,
+  "participant_count": 40,
+  "feature_count": 26,
+  "dataset": {
+    "source": "multiple_sound",
+    "rows": 1040,
+    "participant_count": 40,
+    "class_participant_counts": {
+      "control": 20,
+      "parkinsons_label": 20
+    },
+    "feature_count": 26,
+    "features": [
+      "jitter_local",
+      "jitter_local_abs",
+      "jitter_rap",
+      "jitter_ppq5",
+      "jitter_ddp",
+      "shimmer_local",
+      "shimmer_local_db",
+      "shimmer_apq3",
+      "shimmer_apq5",
+      "shimmer_apq11",
+      "shimmer_dda",
+      "ac",
+      "nth",
+      "htn",
+      "median_pitch",
+      "mean_pitch",
+      "std_pitch",
+      "min_pitch",
+      "max_pitch",
+      "num_pulses",
+      "num_periods",
+      "mean_period",
+      "std_period",
+      "frac_unvoiced",
+      "num_voice_breaks",
+      "degree_voice_breaks"
+    ]
+  },
+  "metrics": {
+    "recording_level": {
+      "balanced_accuracy": 0.5798076923076924,
+      "sensitivity": 0.5615384615384615,
+      "specificity": 0.598076923076923
+    },
+    "subject_level_mean_vote": {
+      "balanced_accuracy": 0.6166666666666666,
+      "sensitivity": 0.6,
+      "specificity": 0.6333333333333333
+    },
+    "subject_level_balanced_acc_95ci": [
+      0.44297981113426566,
+      0.7903535221990675
+    ],
+    "evaluation": "10-fold stratified grouped CV; participant recordings kept in one fold",
+    "models_compared": {
+      "LogisticRegression": {
+        "recording_level_balanced_acc": 0.5743589743589743,
+        "subject_level_balanced_acc": 0.525
+      },
+      "SVM_RBF": {
+        "recording_level_balanced_acc": 0.5778846153846154,
+        "subject_level_balanced_acc": 0.625
+      },
+      "RandomForest": {
+        "recording_level_balanced_acc": 0.5740384615384616,
+        "subject_level_balanced_acc": 0.6083333333333333
+      },
+      "GradientBoosting": {
+        "recording_level_balanced_acc": 0.5618589743589743,
+        "subject_level_balanced_acc": 0.65
+      },
+      "Ensemble(LR+GB)": {
+        "recording_level_balanced_acc": 0.5798076923076924,
+        "subject_level_balanced_acc": 0.6166666666666666
+      }
+    },
+    "selected_model": "Ensemble(LR+GB)",
+    "balanced_accuracy": 0.551923076923077,
+    "sensitivity": 0.5461538461538461,
+    "specificity": 0.5576923076923077,
+    "precision": 0.5525291828793775,
+    "f1": 0.5493230174081238,
+    "roc_auc": 0.572818047337278,
+    "confusion_matrix": {
+      "true_control": 290,
+      "false_positive": 230,
+      "false_negative": 236,
+      "true_parkinson_label": 284
+    }
+  },
+  "limitations": [
+    "Participant-level signal is modest; some published scores for this dataset come from participant leakage (random splits).",
+    "Grouped CV reduces leakage but is not external validation.",
+    "Inputs are precomputed acoustic features, not NeuroNexus live MFCC summaries.",
+    "Not validated for diagnosis, screening, treatment, or clinical decisions."
+  ],
+  "model_file": "/mnt/agents/output/deliverables/models/parkinson_voice_research.joblib"
+}

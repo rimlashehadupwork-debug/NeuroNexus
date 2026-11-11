@@ -5,6 +5,47 @@ import soundfile as sf
 import librosa
 from .confidence import confidence_report
 
+
+def to_standard_wav(audio_bytes: bytes, target_sr: int = 16000) -> tuple[bytes, dict]:
+    """Decode any common audio format (WAV/MP3/M4A/OGG/FLAC) to 16 kHz mono WAV.
+
+    Returns (wav_bytes, info). `info` reports what conversion happened so the
+    UI can tell the user their file was converted rather than rejected.
+    """
+    if not audio_bytes:
+        raise ValueError("The audio input is empty.")
+    audio, sr, decoded_with = None, None, None
+    try:  # fast path: formats libsndfile reads directly (wav, flac, ogg)
+        audio, sr = sf.read(BytesIO(audio_bytes), dtype="float32", always_2d=False)
+        decoded_with = "soundfile"
+    except Exception:
+        try:  # fallback: librosa/audioread path (mp3, m4a, ...)
+            audio, sr = librosa.load(BytesIO(audio_bytes), sr=None, mono=True)
+            decoded_with = "librosa"
+        except Exception as exc:
+            raise ValueError(
+                "Could not decode this audio file. Supported: WAV, MP3, M4A, OGG, FLAC."
+            ) from exc
+    audio = np.asarray(audio, dtype=np.float32)
+    if audio.ndim == 2:
+        audio = audio.mean(axis=1)
+    if not np.isfinite(audio).all():
+        raise ValueError("Audio contains missing or invalid numeric values.")
+    source_sr, source_len = int(sr), int(audio.size)
+    if source_sr != target_sr:
+        audio = librosa.resample(audio, orig_sr=source_sr, target_sr=target_sr)
+    buf = BytesIO()
+    sf.write(buf, audio, target_sr, format="WAV", subtype="PCM_16")
+    info = {
+        "decoded_with": decoded_with,
+        "source_sample_rate": source_sr,
+        "target_sample_rate": target_sr,
+        "source_seconds": round(source_len / float(source_sr), 2) if source_sr else 0.0,
+        "converted": source_sr != target_sr or decoded_with != "soundfile",
+    }
+    return buf.getvalue(), info
+
+
 def analyze_audio_bytes(audio_bytes: bytes) -> dict:
     if not audio_bytes:
         raise ValueError("The audio input is empty.")

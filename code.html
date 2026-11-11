@@ -1,0 +1,1539 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<meta content="web_standard" name="shell-type"/>
+<title>NeuroMetric - Longitudinal Biomarker Monitoring</title>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Next:ital,wght@0,400;0,500;0,700;1,400&amp;family=Plus+Jakarta+Sans:wght@500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<style>
+    @layer base {
+      html, body { margin: 0; padding: 0; }
+      body { overscroll-behavior: none; }
+      main > :first-child { margin-top: 0 !important; }
+      main > :last-child { margin-bottom: 0 !important; }
+    }
+    ::-webkit-scrollbar { width: 10px; height: 10px; }
+    ::-webkit-scrollbar-thumb { background: #A9C0BA; border-radius: 999px; }
+    ::-webkit-scrollbar-track { background: #EFF4F2; }
+    .prompter-font-enlarged blockquote {
+      font-size: 1.75rem !important;
+      line-height: 2.4rem !important;
+    }
+    .prompter-font-enlarged {
+      font-size: 1.125rem;
+    }
+    @keyframes subtleDrift {
+      0% { transform: translate(0, 0); }
+      25% { transform: translate(2px, -3px); }
+      50% { transform: translate(-2px, 2px); }
+      75% { transform: translate(3px, 1px); }
+      100% { transform: translate(0, 0); }
+    }
+    .drift-active {
+      animation: subtleDrift 3s ease-in-out infinite;
+    }
+    body {
+      color: #1A2426;
+      font-size: 18px;
+      line-height: 1.6;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1200 180'%3E%3Cpath d='M0 90h205l25-2 22-42 28 88 34-70 30 26h174l24-2 24-36 24 68 28-34h582' fill='none' stroke='%233A7D6B' stroke-opacity='.12' stroke-width='5'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: center bottom;
+      background-size: min(100%, 1200px) 180px;
+      background-attachment: fixed;
+    }
+    p, li, blockquote, label, input, textarea, select,
+    .font-body-sm, .font-body-md, .font-label-sm, .font-label-md,
+    .text-xs, .text-sm, [class*="text-[11px]"], [class*="text-[12px]"], [class*="text-[14px]"] {
+      font-size: 18px !important;
+      line-height: 1.55 !important;
+    }
+    button, input, select, textarea { font-family: "Atkinson Hyperlegible Next", sans-serif; }
+    button, input[type="checkbox"], input[type="radio"] { min-height: 48px; }
+    a[href] { display: inline-flex; min-height: 48px; align-items: center; }
+    button, a[href], input, select, textarea {
+      transition: background-color .18s ease, border-color .18s ease, box-shadow .18s ease, transform .18s ease;
+    }
+    button:focus-visible, a[href]:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible {
+      outline: 3px solid #78A99A;
+      outline-offset: 3px;
+    }
+    button:hover { box-shadow: 0 5px 14px rgba(58, 125, 107, .14); }
+    .bg-surface-container-lowest, .bg-surface-container, .bg-surface-container-low {
+      border-color: #D8E2E3;
+    }
+    .rounded-xl, .rounded-2xl { border-radius: 16px; }
+    body > header {
+      background: #1E565C !important;
+      color: #fff;
+      box-shadow: 0 1px 8px rgba(11, 28, 48, .12);
+    }
+    body > header .text-on-surface { color: #fff !important; }
+    body > header .text-on-surface-variant { color: #E3EFEC !important; }
+    body > header .text-secondary { color: #B8D7CC !important; }
+    #view-assessment > div > section:first-child .text-secondary { color: #D9E9E3 !important; }
+    #view-assessment > div > section:first-child {
+      background: linear-gradient(120deg, #1E565C, #244F52);
+      border: 1px solid rgba(255, 255, 255, .16);
+      box-shadow: 0 12px 30px rgba(30, 86, 92, .12);
+      color: #fff;
+    }
+    #view-assessment > div > section:first-child h1,
+    #view-assessment > div > section:first-child p { color: #fff !important; }
+    #view-assessment > div > section:first-child [id^="step-tab-"] {
+      min-height: 52px;
+      border: 1px solid rgba(255, 255, 255, .3);
+    }
+    #view-assessment > div > section:first-child [id="step-tab-a"] {
+      background: #E1EEE9;
+      color: #28584D;
+    }
+    #view-assessment > div > section:first-child [id="step-tab-b"],
+    #view-assessment > div > section:first-child [id="step-tab-c"] {
+      background: rgba(255, 255, 255, .12);
+      color: #fff;
+    }
+    #view-report [class*="rounded-xl"], #view-report [class*="rounded-2xl"] {
+      border: 1px solid #D8E2E3;
+      box-shadow: 0 6px 20px rgba(30, 86, 92, .05);
+    }
+    #view-report button { min-height: 52px; }
+    @media (max-width: 1100px) {
+      body > header > div {
+        height: auto !important;
+        min-height: 80px;
+        padding-top: .5rem;
+        padding-bottom: .5rem;
+        flex-wrap: wrap;
+      }
+      body > header > div > div:last-child { flex-wrap: wrap; justify-content: flex-end; gap: .5rem; }
+      #autosave-status, #autosave-dot { display: none !important; }
+      main { padding-top: 14rem !important; }
+    }
+    @media (max-width: 760px) {
+      #view-assessment > div > section:first-child { padding: 1.25rem; }
+      #view-assessment > div > section:first-child [id^="step-tab-"] { width: 100%; justify-content: flex-start; }
+      main { padding-top: 14rem !important; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
+    }
+    @page { size: A4; margin: 15mm; }
+    @media print {
+      html, body { background: #fff !important; color: #111 !important; }
+      body:has(#view-report:not(.hidden)) #view-assessment { display: none !important; }
+      body:has(#view-report:not(.hidden)) #view-report { display: flex !important; }
+      header, footer, #assist-toast, #save-exit-modal, #rest-modal { display: none !important; }
+      main { padding-top: 0 !important; background: #fff !important; }
+      #view-report { color: #111 !important; }
+      #view-report > div { max-width: none !important; padding: 0 !important; }
+      #view-report [class*="shadow"] { box-shadow: none !important; }
+      #view-report [class*="rounded-xl"], #view-report [class*="rounded-2xl"] { border-color: #C8D1CF !important; break-inside: avoid; }
+      #view-report button { display: none !important; }
+      #view-report h1, #view-report h2, #view-report h3, #view-report p, #view-report span { color: #111 !important; }
+      * { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+    }
+  </style>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          colors: {
+            "surface-container-highest": "#E3ECEA",
+            "surface-container": "#EAF0EE",
+            "inverse-surface": "#1E565C",
+            "surface-tint": "#3A7D6B",
+            "on-surface": "#1A2426",
+            "on-secondary": "#ffffff",
+            "surface-container-low": "#F2F6F4",
+            "on-tertiary": "#ffffff",
+            "on-primary": "#ffffff",
+            "on-tertiary-container": "#3A7D6B",
+            "primary-container": "#1E565C",
+            "secondary-fixed-dim": "#A6C8BE",
+            "secondary": "#3A7D6B",
+            "primary-fixed": "#DCE7E3",
+            "primary-fixed-dim": "#B8CCC6",
+            "tertiary-fixed-dim": "#C2DAD4",
+            "on-secondary-container": "#28584D",
+            "primary": "#1E565C",
+            "surface-container-lowest": "#ffffff",
+            "tertiary": "#1E565C",
+            "inverse-primary": "#B8CCC6",
+            "background": "#F8FAF9",
+            "on-secondary-fixed-variant": "#28584D",
+            "on-primary-fixed-variant": "#40514F",
+            "surface-dim": "#DCE6E2",
+            "surface-variant": "#E3ECEA",
+            "tertiary-fixed": "#E0EBE6",
+            "secondary-fixed": "#D9E9E3",
+            "on-primary-fixed": "#143F43",
+            "on-tertiary-fixed-variant": "#28584D",
+            "error-container": "#ffdad6",
+            "surface-bright": "#f8f9ff",
+            "tertiary-container": "#1E565C",
+            "surface-container-high": "#E7EEEB",
+            "secondary-container": "#E1EEE9",
+            "on-background": "#1A2426",
+            "outline-variant": "#D8E2E3",
+            "on-primary-container": "#E5F0ED",
+            "outline": "#71837F",
+            "on-surface-variant": "#43524F",
+            "surface": "#F8FAF9",
+            "inverse-on-surface": "#F4F7F6",
+            "error": "#ba1a1a",
+            "on-error-container": "#93000a",
+            "on-secondary-fixed": "#00201d",
+            "on-tertiary-fixed": "#00201c",
+            "on-error": "#ffffff"
+          },
+          borderRadius: {
+            "DEFAULT": "0.25rem",
+            "lg": "0.5rem",
+            "xl": "0.75rem",
+            "full": "9999px"
+          },
+          spacing: {
+            "margin": "2rem",
+            "margin-lg": "3rem",
+            "margin-sm": "1rem",
+            "gutter-lg": "2rem",
+            "space-lg": "2rem",
+            "space-xs": "0.375rem",
+            "space-sm": "0.75rem",
+            "space-md": "1.25rem",
+            "space-xl": "3rem",
+            "gutter": "1.5rem",
+            "gutter-sm": "1rem"
+          },
+          fontFamily: {
+            "headline-sm": ["Plus Jakarta Sans"],
+            "label-sm": ["Plus Jakarta Sans"],
+            "metric-unit": ["Atkinson Hyperlegible Next"],
+            "body-md": ["Atkinson Hyperlegible Next"],
+            "body-sm": ["Atkinson Hyperlegible Next"],
+            "headline-md": ["Plus Jakarta Sans"],
+            "display": ["Plus Jakarta Sans"],
+            "headline-lg": ["Plus Jakarta Sans"],
+            "display-mobile": ["Plus Jakarta Sans"],
+            "headline-lg-mobile": ["Plus Jakarta Sans"],
+            "metric-value": ["Plus Jakarta Sans"],
+            "body-lg": ["Atkinson Hyperlegible Next"],
+            "label-md": ["Plus Jakarta Sans"],
+            "label-lg": ["Plus Jakarta Sans"]
+          },
+          fontSize: {
+            "headline-sm": ["20px", { lineHeight: "28px", letterSpacing: "0em", fontWeight: "600" }],
+            "label-sm": ["18px", { lineHeight: "28px", letterSpacing: "0.04em", fontWeight: "600" }],
+            "metric-unit": ["18px", { lineHeight: "26px", letterSpacing: "0.02em", fontWeight: "500" }],
+            "body-md": ["18px", { lineHeight: "29px", letterSpacing: "0.01em", fontWeight: "400" }],
+            "body-sm": ["18px", { lineHeight: "28px", letterSpacing: "0.01em", fontWeight: "400" }],
+            "headline-md": ["24px", { lineHeight: "32px", letterSpacing: "-0.01em", fontWeight: "600" }],
+            "display": ["40px", { lineHeight: "48px", letterSpacing: "-0.02em", fontWeight: "700" }],
+            "headline-lg": ["32px", { lineHeight: "40px", letterSpacing: "-0.01em", fontWeight: "600" }],
+            "display-mobile": ["30px", { lineHeight: "38px", letterSpacing: "-0.01em", fontWeight: "700" }],
+            "headline-lg-mobile": ["24px", { lineHeight: "32px", letterSpacing: "0em", fontWeight: "600" }],
+            "metric-value": ["36px", { lineHeight: "40px", letterSpacing: "-0.02em", fontWeight: "700" }],
+            "body-lg": ["18px", { lineHeight: "28px", letterSpacing: "0.01em", fontWeight: "400" }],
+            "label-md": ["18px", { lineHeight: "28px", letterSpacing: "0.02em", fontWeight: "600" }],
+            "label-lg": ["18px", { lineHeight: "28px", letterSpacing: "0.01em", fontWeight: "600" }]
+          }
+        }
+      }
+    };
+  </script>
+</head>
+<body class="bg-surface font-body-md text-on-surface min-h-screen flex flex-col antialiased selection:bg-secondary-container selection:text-on-secondary-container">
+<!-- TOP HEADER -->
+<header class="fixed top-0 w-full z-50 bg-surface-container-lowest/90 backdrop-blur-xl shadow-[0_1px_8px_rgba(11,28,48,0.04)]">
+<div class="h-20 max-w-7xl mx-auto px-margin-sm lg:px-margin-lg flex items-center justify-between gap-space-md">
+<div class="flex items-center gap-space-lg">
+<div class="flex items-center gap-space-sm cursor-pointer" onclick="switchMainView('assessment')">
+<img alt="NeuroMetric Logo" class="h-8 w-auto object-contain" src="https://lh3.googleusercontent.com/aida/AEtjO1WFE-AmUkIH6Q4OMwA7O5jCL7GZWhBUSSFMNBpWZ5JReqI3CX0W7IqWhTj-gNGUoLOFBp8eZ5OGgvsxgdFgL0379OEV2xfmdD4AmVe_rchEI9jh-LF29Kret9MC8Ofq2POU078P3A6EuJRgxRI3mWUucwIGSvXp44QI0cV8SCa8CvLW0KSudXs22tp2uiI34mSYUdJcxdKaZTJMDbad8QTxwEUv2ka5XRZXqXc79YGk"/>
+<div class="flex flex-col">
+<span class="font-headline-sm text-headline-sm text-on-surface tracking-tight leading-none">NeuroMetric</span>
+<span class="font-label-sm text-label-sm text-secondary leading-normal">Biomarker Monitoring</span>
+</div>
+</div>
+<!-- Dual View Navigation Switcher -->
+<nav class="hidden xl:flex items-center p-1 bg-surface-container-low rounded-full" id="main-nav-tabs">
+<button class="px-space-md py-space-xs transition-colors duration-150 flex items-center bg-secondary text-on-secondary font-label-md text-label-md rounded-full shadow-sm" id="nav-btn-assessment" onclick="switchMainView('assessment')">
+            Guided Assessment
+          </button>
+<button class="px-space-md py-space-xs rounded-full font-label-md text-label-md text-on-surface-variant hover:text-on-surface transition-colors duration-150 flex items-center" id="nav-btn-report" onclick="switchMainView('report')">
+            Baseline Report (Current)
+          </button>
+</nav>
+</div>
+<div class="flex items-center gap-space-md">
+<div class="hidden md:flex items-center gap-space-xs bg-surface-container-low px-space-sm py-space-xs rounded-full">
+<span class="w-2 h-2 rounded-full bg-secondary animate-pulse" id="autosave-dot"></span>
+<span class="font-label-sm text-label-sm text-on-surface-variant font-medium" id="autosave-status">Clinical Session #NM-84920 · Auto-Saved</span>
+</div>
+<div class="hidden sm:flex items-center gap-space-xs">
+<!-- Accessible Font Toggle -->
+<button aria-label="Adjust Font Size" class="h-10 px-space-sm rounded-full bg-surface-container hover:bg-surface-container-high transition-colors text-on-surface flex items-center gap-1 font-label-sm text-label-sm" id="font-scale-btn" onclick="toggleFontSize()" title="Toggle larger text for relaxed reading" type="button">
+<span class="material-symbols-outlined text-[18px]">format_size</span>
+<span class="font-semibold" id="font-scale-label">A / A+</span>
+</button>
+<!-- Audio Assist Button -->
+<button aria-label="Toggle Audio Assistance" class="h-10 px-space-sm rounded-full bg-surface-container hover:bg-surface-container-high transition-all text-on-surface flex items-center gap-1 font-label-sm text-label-sm" id="audio-assist-btn" onclick="toggleAudioAssist()" type="button">
+<span class="material-symbols-outlined text-[18px] text-secondary" id="audio-assist-icon">volume_up</span>
+<span class="font-medium" id="audio-assist-text">Audio Assist</span>
+</button>
+</div>
+<!-- Save & Exit with confirmation modal -->
+<button class="h-12 px-space-md rounded-full bg-primary hover:bg-primary-container text-on-primary transition-all duration-150 flex items-center gap-space-xs shadow-sm font-label-md text-label-md" onclick="openModal('save-exit-modal')" type="button">
+<span class="material-symbols-outlined text-[20px] text-on-primary">lock</span>
+<span class="hidden sm:inline font-semibold">Save &amp; Exit Assessment</span>
+<span class="sm:hidden font-semibold">Exit</span>
+</button>
+<div class="w-8 h-8 rounded-full bg-primary flex items-center justify-center shrink-0" title="Patient ID: Arthur P.">
+<span class="material-symbols-outlined text-on-primary text-[18px]">person</span>
+</div>
+</div>
+</div>
+</header>
+<!-- Audio Assist Feedback Toast -->
+<div class="fixed bottom-6 right-6 z-50 transform translate-y-24 opacity-0 transition-all duration-300 pointer-events-none bg-surface-container-lowest border border-secondary/30 shadow-xl rounded-xl p-space-md max-w-sm flex items-start gap-space-sm" id="assist-toast">
+<div class="w-8 h-8 rounded-full bg-secondary-container flex items-center justify-center text-secondary shrink-0 animate-pulse">
+<span class="material-symbols-outlined text-[20px]">record_voice_over</span>
+</div>
+<div class="flex flex-col">
+<span class="font-label-sm text-label-sm font-semibold text-secondary">Audio Assistance Active</span>
+<p class="font-body-sm text-body-sm text-on-surface mt-0.5" id="assist-toast-text">Spoken instructions will accompany each assessment section.</p>
+</div>
+</div>
+<!-- MAIN VIEWPORT CONTAINER -->
+<main class="w-full pt-20 bg-surface flex-1" id="main-content-area">
+<!-- VIEW 1: GUIDED ASSESSMENT VIEW -->
+<div class="flex flex-col w-full transition-opacity duration-300" id="view-assessment">
+<div class="max-w-7xl mx-auto w-full px-margin-sm lg:px-margin-lg py-space-md lg:py-space-lg flex flex-col gap-space-lg">
+<!-- PATIENT COMFORT & REASSURANCE HERO BANNER -->
+<section class="relative overflow-hidden rounded-xl bg-surface-container-low shadow-sm p-space-md lg:p-space-lg flex flex-col md:flex-row items-start md:items-center justify-between gap-space-md">
+<div class="absolute -right-16 -top-16 w-64 h-64 bg-secondary-container/30 rounded-full blur-3xl pointer-events-none"></div>
+<div class="flex flex-col max-w-2xl z-10">
+<div class="flex items-center gap-space-xs mb-space-xs">
+<span class="inline-flex items-center justify-center w-8 h-8 rounded-full bg-secondary/10 text-secondary">
+<span class="material-symbols-outlined text-[20px]" style="font-variation-settings: 'FILL' 1;">spa</span>
+</span>
+<span class="font-label-sm text-label-sm uppercase tracking-wider text-secondary font-bold">Session #NM-84920 · Patient Guided Track</span>
+</div>
+<h1 class="font-headline-md text-headline-md text-on-surface tracking-tight" id="hero-title">
+              Welcome, Arthur. Take all the time you need.
+            </h1>
+<p class="font-body-lg text-body-lg text-on-surface-variant mt-1">
+              There are no timers, right or wrong answers, or pass/fail scores. You are always in complete control.
+            </p>
+</div>
+<!-- Interactive Dignified Step Progression Steppers -->
+<div class="flex flex-wrap items-center gap-space-xs z-10 w-full md:w-auto" role="tablist">
+<button class="flex items-center gap-space-xs px-space-md py-space-xs bg-secondary-container text-on-secondary-container rounded-full shadow-sm transition-all text-left" id="step-tab-a" onclick="switchModule('module-a')">
+<span class="w-2.5 h-2.5 rounded-full bg-secondary animate-pulse" id="step-dot-a"></span>
+<span class="font-label-md text-label-md font-semibold" id="step-text-a">1. Voice Rhythm (Active)</span>
+</button>
+<button class="flex items-center gap-space-xs px-space-md py-space-xs bg-surface-container-highest text-on-surface-variant hover:bg-surface-container rounded-full transition-all text-left" id="step-tab-b" onclick="switchModule('module-b')">
+<span class="w-2 h-2 rounded-full bg-outline-variant" id="step-dot-b"></span>
+<span class="font-label-md text-label-md" id="step-text-b">2. Hand Stability</span>
+</button>
+<button class="flex items-center gap-space-xs px-space-md py-space-xs bg-surface-container-highest text-on-surface-variant hover:bg-surface-container rounded-full transition-all text-left" id="step-tab-c" onclick="switchModule('module-c')">
+<span class="w-2 h-2 rounded-full bg-outline-variant" id="step-dot-c"></span>
+<span class="font-label-md text-label-md" id="step-text-c">3. Steady Walk</span>
+</button>
+</div>
+</section>
+<!-- MAIN MODULE WORKSPACE -->
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-space-lg items-start">
+<!-- LEFT COLUMN: ACTIVE INTERACTIVE MODULE CONTAINER -->
+<div class="lg:col-span-8 flex flex-col gap-space-lg">
+<!-- MODULE A: VOICE & SPEECH ACOUSTICS -->
+<section class="module-panel flex flex-col gap-space-lg" id="module-a">
+<div class="bg-surface-container-lowest rounded-xl p-space-lg shadow-sm flex flex-col gap-space-md">
+<div class="flex flex-wrap items-center justify-between gap-space-sm">
+<div class="flex items-center gap-space-sm">
+<div class="w-12 h-12 rounded-full bg-secondary-container/60 flex items-center justify-center text-secondary">
+<span class="material-symbols-outlined text-[28px]">graphic_eq</span>
+</div>
+<div class="flex flex-col">
+<span class="font-label-sm text-label-sm uppercase tracking-wider text-secondary">Baseline Protocol NM-A</span>
+<h2 class="font-headline-lg text-headline-lg text-on-surface">Module A: Voice &amp; Speech Acoustics</h2>
+</div>
+</div>
+<div class="inline-flex items-center gap-1.5 px-space-sm py-1 rounded-full bg-surface-container text-on-surface-variant font-label-sm text-label-sm">
+<span class="material-symbols-outlined text-[16px] text-secondary">verified</span>
+<span>Calibrated Vocal Tract Sensor</span>
+</div>
+</div>
+<p class="font-body-lg text-body-lg text-on-surface-variant">
+                  Evaluates natural phonation cadence, breath regulation, and acoustic vocal tract resonance in real-time. Please read the passage below aloud in your normal speaking tone.
+                </p>
+<!-- Warm Prompter Card -->
+<div class="relative bg-surface-container-low/70 rounded-xl p-space-lg shadow-inner overflow-hidden transition-all duration-200" id="prompter-card">
+<div class="flex items-center justify-between mb-space-sm">
+<span class="font-label-sm text-label-sm uppercase tracking-wider text-on-surface-variant font-semibold flex items-center gap-1">
+<span class="material-symbols-outlined text-[16px]">menu_book</span> Reading Passage
+                    </span>
+<span class="font-label-sm text-label-sm text-secondary font-medium">Standard Phonetic Balance Sample</span>
+</div>
+<blockquote class="font-headline-md text-headline-md text-on-surface leading-relaxed tracking-normal select-none">
+                    “The autumn breeze moved gently through the tall pine trees, carrying the scent of cedar and clean rain. A quiet afternoon provides time to rest and speak with ease.”
+                  </blockquote>
+<div class="mt-space-md pt-space-sm flex flex-wrap items-center justify-between gap-space-xs text-on-surface-variant">
+<span class="font-body-sm text-body-sm">Tip: Pause wherever you like to take a breath. There is no hurry.</span>
+<button class="text-secondary hover:text-on-secondary-container font-label-md text-label-md flex items-center gap-1 cursor-pointer transition-colors" id="sample-pronounce-btn" onclick="playPronunciationSample()" type="button">
+<span class="material-symbols-outlined text-[18px]">volume_up</span>
+<span id="sample-pronounce-txt">Play Pronunciation Sample</span>
+</button>
+</div>
+</div>
+<!-- Tactile Mic Experience & Waveform Section -->
+<div class="flex flex-col items-center justify-center p-space-md lg:p-space-lg bg-surface-container-lowest rounded-xl">
+<!-- Animated Pulse Circle & Mic Control -->
+<div class="relative flex items-center justify-center my-space-sm">
+<div class="absolute w-36 h-36 rounded-full bg-secondary-container/40 animate-ping opacity-60 transition-all" id="pulse-ring-1"></div>
+<div class="absolute w-28 h-28 rounded-full bg-secondary-fixed/50 animate-pulse transition-all" id="pulse-ring-2"></div>
+<button aria-label="Microphone active recording toggle" class="relative z-10 w-24 h-24 rounded-full bg-secondary hover:bg-primary-container text-on-secondary shadow-lg flex flex-col items-center justify-center transition-all duration-300 transform active:scale-95 focus:outline-none cursor-pointer" id="mic-toggle-btn" type="button">
+<span class="material-symbols-outlined text-[36px]" id="mic-icon">mic</span>
+<span class="font-label-sm text-[11px] tracking-tight text-secondary-fixed mt-0.5" id="mic-state-label">Recording</span>
+</button>
+</div>
+<div class="text-center mt-space-xs mb-space-md">
+<h3 class="font-headline-sm text-headline-sm text-on-surface" id="mic-headline">Listening to your natural voice...</h3>
+<p class="font-body-sm text-body-sm text-on-surface-variant" id="mic-subtext">Continuous neural filter active · Tap the circular button any time to pause</p>
+</div>
+<!-- Waveform SVG / Canvas Visualization -->
+<div class="w-full bg-surface-container-low rounded-xl p-space-md shadow-inner flex flex-col gap-space-xs">
+<div class="flex items-center justify-between font-label-sm text-label-sm text-on-surface-variant px-space-xs">
+<span class="flex items-center gap-1 font-medium text-secondary" id="waveform-live-badge">
+<span class="w-2 h-2 rounded-full bg-secondary animate-ping" id="wave-dot"></span> Live Signal Telemetry
+                      </span>
+<span class="font-metric-unit text-metric-unit">Sampling Frequency: 48.0 kHz</span>
+</div>
+<!-- Canvas/SVG hybrid wave -->
+<div class="w-full h-24 overflow-hidden flex items-center relative">
+<canvas class="w-full h-full block" height="90" id="live-wave-canvas" width="700"></canvas>
+</div>
+<!-- Audio scrub bar (shown during listen back mode) -->
+<div class="hidden w-full flex items-center gap-space-xs pt-1 px-1" id="playback-bar-container">
+<span class="text-xs text-on-surface-variant" id="pb-current-time">0:00</span>
+<input class="w-full accent-secondary h-2 cursor-pointer rounded-lg bg-surface-container-highest" id="pb-slider" max="100" min="0" type="range" value="0"/>
+<span class="text-xs text-on-surface-variant" id="pb-total-time">0:14</span>
+</div>
+<div class="flex items-center justify-between text-on-surface-variant font-label-sm text-label-sm pt-space-xs">
+<span id="elapsed-time">0.00s</span>
+<span id="envelope-label">Signal Peak: Safe Reference Envelope</span>
+<span id="buffer-state">Buffer: Active</span>
+</div>
+</div>
+<!-- Diagnostic Safe Signals (No harsh alerts) -->
+<div class="w-full grid grid-cols-1 md:grid-cols-3 gap-space-sm mt-space-md">
+<div class="flex items-start gap-space-xs p-space-sm rounded-lg bg-surface-container">
+<span class="material-symbols-outlined text-secondary text-[22px] shrink-0 mt-0.5">volume_mute</span>
+<div class="flex flex-col">
+<span class="font-label-sm text-label-sm text-on-surface font-semibold">Room Acoustics</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant" id="telemetry-room">Quiet environment (Ambient 28 dB)</span>
+</div>
+</div>
+<div class="flex items-start gap-space-xs p-space-sm rounded-lg bg-surface-container">
+<span class="material-symbols-outlined text-secondary text-[22px] shrink-0 mt-0.5">speed</span>
+<div class="flex flex-col">
+<span class="font-label-sm text-label-sm text-on-surface font-semibold">Pacing Speed</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant" id="telemetry-pace">Comfortable rhythm (132 wpm)</span>
+</div>
+</div>
+<div class="flex items-start gap-space-xs p-space-sm rounded-lg bg-surface-container">
+<span class="material-symbols-outlined text-secondary text-[22px] shrink-0 mt-0.5">graphic_eq</span>
+<div class="flex flex-col">
+<span class="font-label-sm text-label-sm text-on-surface font-semibold">Voice Clarity</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant" id="telemetry-clarity">High definition, no clipping</span>
+</div>
+</div>
+</div>
+<!-- Action Controls Strip -->
+<div class="w-full flex flex-col sm:flex-row items-center justify-between gap-space-sm mt-space-lg pt-space-md border-t border-outline-variant/30">
+<div class="flex items-center gap-space-xs w-full sm:w-auto">
+<button class="h-12 px-space-md rounded-full bg-surface-container hover:bg-surface-container-high text-on-surface flex items-center justify-center gap-2 font-label-md text-label-md transition-colors w-full sm:w-auto cursor-pointer" id="pause-btn" type="button">
+<span class="material-symbols-outlined text-[20px]" id="pause-btn-icon">pause_circle</span>
+<span id="pause-btn-text">Pause Recording</span>
+</button>
+<button class="h-12 px-space-md rounded-full bg-surface-container hover:bg-surface-container-high text-on-surface flex items-center justify-center gap-2 font-label-md text-label-md transition-colors w-full sm:w-auto cursor-pointer" id="listen-back-btn" onclick="toggleListenBack()" type="button">
+<span class="material-symbols-outlined text-[20px]" id="listen-icon">replay</span>
+<span id="listen-btn-text">Listen Back</span>
+</button>
+</div>
+<button class="h-12 px-space-lg rounded-full bg-secondary hover:bg-primary-container text-on-secondary shadow-md flex items-center justify-center gap-space-xs font-label-md text-label-md transition-all duration-200 w-full sm:w-auto cursor-pointer" onclick="switchModule('module-b')" type="button">
+<span>Complete &amp; Continue to Module B</span>
+<span class="material-symbols-outlined text-[20px]">arrow_forward</span>
+</button>
+</div>
+</div>
+</div>
+</section>
+<!-- MODULE B: RESTING HAND STABILITY (10-SEC TEST) -->
+<section class="module-panel hidden flex-col gap-space-lg" id="module-b">
+<div class="bg-surface-container-lowest rounded-xl p-space-lg shadow-sm flex flex-col gap-space-md">
+<div class="flex flex-wrap items-center justify-between gap-space-sm">
+<div class="flex items-center gap-space-sm">
+<div class="w-12 h-12 rounded-full bg-secondary-container/60 flex items-center justify-center text-secondary">
+<span class="material-symbols-outlined text-[28px]">front_hand</span>
+</div>
+<div class="flex flex-col">
+<span class="font-label-sm text-label-sm uppercase tracking-wider text-secondary">Baseline Protocol NM-B</span>
+<h2 class="font-headline-lg text-headline-lg text-on-surface">Module B: Resting Hand Stability</h2>
+</div>
+</div>
+<div class="inline-flex items-center gap-1.5 px-space-sm py-1 rounded-full bg-surface-container text-on-surface-variant font-label-sm text-label-sm">
+<span class="material-symbols-outlined text-[16px] text-secondary">sensors</span>
+<span>3-Axis Inertial Measurement Unit (IMU)</span>
+</div>
+</div>
+<p class="font-body-lg text-body-lg text-on-surface-variant">
+                  This brief 10-second capture gathers postural tremor frequency patterns in an unhurried, comfortable position.
+                </p>
+<!-- Placement Instruction Card -->
+<div class="bg-surface-container-low/80 rounded-xl p-space-lg border border-secondary/20 flex flex-col md:flex-row items-center gap-space-md">
+<div class="w-20 h-20 rounded-2xl bg-secondary-container/50 flex items-center justify-center text-secondary shrink-0">
+<span class="material-symbols-outlined text-[44px]">airline_seat_recline_normal</span>
+</div>
+<div class="flex flex-col">
+<h3 class="font-headline-sm text-headline-sm text-on-surface">Position your hands comfortably</h3>
+<p class="font-body-md text-body-md text-on-surface-variant mt-1">
+                      Sit comfortably in your chair. Rest your hands gently on your lap or palm down on a table. Keep breathing smoothly and naturally.
+                    </p>
+</div>
+</div>
+<!-- 10-Second Test Interactive Card -->
+<div class="flex flex-col items-center justify-center p-space-lg bg-surface-container-low rounded-xl">
+<!-- Accelerometer visual simulator crosshair -->
+<div class="relative w-48 h-48 rounded-full border-2 border-dashed border-secondary/40 flex items-center justify-center bg-surface-container-lowest my-space-sm overflow-hidden">
+<div class="absolute inset-0 flex items-center justify-center opacity-20 pointer-events-none">
+<div class="w-full h-[1px] bg-secondary"></div>
+<div class="h-full w-[1px] bg-secondary absolute"></div>
+</div>
+<!-- Micro drift target dot -->
+<div class="w-10 h-10 rounded-full bg-secondary/80 flex items-center justify-center text-on-secondary shadow-md transition-transform duration-300" id="stability-drift-dot">
+<span class="material-symbols-outlined text-[18px]">radio_button_checked</span>
+</div>
+</div>
+<div class="text-center mt-2 mb-4">
+<span class="text-xs uppercase tracking-wider text-secondary font-bold" id="b-countdown-label">Ready When You Are</span>
+<h4 class="font-headline-md text-headline-md text-on-surface" id="stability-timer-display">10.0 Seconds</h4>
+<p class="font-body-sm text-body-sm text-on-surface-variant" id="b-instruction-note">Press "Begin Stability Test" to start the 10-second capture.</p>
+</div>
+<!-- Horizontal Smooth Progress Ribbon -->
+<div class="w-full bg-surface-container-highest h-3 rounded-full overflow-hidden mb-6 max-w-md">
+<div class="bg-secondary h-full rounded-full transition-all duration-150" id="stability-progress-bar" style="width: 0%;"></div>
+</div>
+<!-- Start / Pause / Reset controls for module B -->
+<div class="flex flex-wrap items-center gap-space-sm justify-center">
+<button class="h-12 px-space-lg rounded-full bg-secondary hover:bg-primary-container text-on-secondary shadow-md flex items-center gap-2 font-label-md text-label-md transition-all cursor-pointer" id="start-module-b-btn" onclick="startStabilityTest()">
+<span class="material-symbols-outlined text-[20px]">play_arrow</span>
+<span>Begin Stability Test (10s)</span>
+</button>
+<button class="h-12 px-space-md rounded-full bg-surface-container hover:bg-surface-container-high text-on-surface flex items-center gap-2 font-label-md text-label-md transition-all cursor-pointer" id="reset-module-b-btn" onclick="resetStabilityTest()">
+<span class="material-symbols-outlined text-[20px]">restart_alt</span>
+<span>Reset</span>
+</button>
+</div>
+</div>
+<!-- Navigation buttons for Module B -->
+<div class="w-full flex flex-col sm:flex-row items-center justify-between gap-space-sm mt-space-md pt-space-md border-t border-outline-variant/30">
+<button class="h-12 px-space-md rounded-full bg-surface-container hover:bg-surface-container-high text-on-surface flex items-center gap-2 font-label-md text-label-md cursor-pointer" onclick="switchModule('module-a')">
+<span class="material-symbols-outlined text-[20px]">arrow_back</span>
+<span>Back to Voice Rhythm</span>
+</button>
+<button class="h-12 px-space-lg rounded-full bg-secondary hover:bg-primary-container text-on-secondary shadow-md flex items-center gap-space-xs font-label-md text-label-md cursor-pointer" onclick="switchModule('module-c')">
+<span>Complete &amp; Continue to Module C</span>
+<span class="material-symbols-outlined text-[20px]">arrow_forward</span>
+</button>
+</div>
+</div>
+</section>
+<!-- MODULE C: GUIDED CADENCE WALK (POCKET MODE) -->
+<section class="module-panel hidden flex-col gap-space-lg" id="module-c">
+<div class="bg-surface-container-lowest rounded-xl p-space-lg shadow-sm flex flex-col gap-space-md">
+<div class="flex flex-wrap items-center justify-between gap-space-sm">
+<div class="flex items-center gap-space-sm">
+<div class="w-12 h-12 rounded-full bg-secondary-container/60 flex items-center justify-center text-secondary">
+<span class="material-symbols-outlined text-[28px]">directions_walk</span>
+</div>
+<div class="flex flex-col">
+<span class="font-label-sm text-label-sm uppercase tracking-wider text-secondary">Baseline Protocol NM-C</span>
+<h2 class="font-headline-lg text-headline-lg text-on-surface">Module C: Guided Cadence Walk</h2>
+</div>
+</div>
+<div class="inline-flex items-center gap-1.5 px-space-sm py-1 rounded-full bg-surface-container text-on-surface-variant font-label-sm text-label-sm">
+<span class="material-symbols-outlined text-[16px] text-secondary">verified_user</span>
+<span>Safety-First Gait Monitor</span>
+</div>
+</div>
+<p class="font-body-lg text-body-lg text-on-surface-variant">
+                  Measures gait symmetry, stride variability, and turn regularity along a safe flat path. Before beginning, please confirm your comfort and safety.
+                </p>
+<!-- Safety Gatekeeper Checklist -->
+<div class="bg-surface-container-low rounded-xl p-space-md border border-secondary/20 flex flex-col gap-space-xs">
+<span class="font-label-md text-label-md text-on-surface font-semibold flex items-center gap-2">
+<span class="material-symbols-outlined text-secondary text-[20px]">check_box</span>
+                    Patient Safety Pre-Check
+                  </span>
+<p class="font-body-sm text-body-sm text-on-surface-variant">
+                    Please tick the confirmations below to unlock the walk protocol:
+                  </p>
+<div class="flex flex-col gap-2 mt-2">
+<label class="flex items-center gap-3 p-2 bg-surface-container-lowest rounded-lg cursor-pointer hover:bg-surface-container transition-colors">
+<input class="w-5 h-5 rounded text-secondary focus:ring-secondary accent-secondary cursor-pointer" id="walk-check-safe" onchange="validateWalkReadiness()" type="checkbox"/>
+<span class="font-body-md text-body-md text-on-surface">I feel steady on my feet and safe to walk 20 meters.</span>
+</label>
+<label class="flex items-center gap-3 p-2 bg-surface-container-lowest rounded-lg cursor-pointer hover:bg-surface-container transition-colors">
+<input class="w-5 h-5 rounded text-secondary focus:ring-secondary accent-secondary cursor-pointer" id="walk-check-path" onchange="validateWalkReadiness()" type="checkbox"/>
+<span class="font-body-md text-body-md text-on-surface">My walkway is well-lit, flat, and free of rugs or obstacles.</span>
+</label>
+</div>
+</div>
+<!-- Interactive Pocket Mode Walk Simulator -->
+<div class="bg-surface-container-low rounded-xl p-space-lg flex flex-col items-center justify-center text-center transition-all duration-500" id="pocket-mode-card">
+<div class="w-16 h-16 rounded-full bg-surface-container-highest text-on-surface-variant flex items-center justify-center mb-3 transition-colors" id="pocket-icon-badge">
+<span class="material-symbols-outlined text-[32px]" id="pocket-symbol">stay_current_portrait</span>
+</div>
+<span class="px-space-sm py-0.5 rounded-full bg-surface-container text-on-surface-variant text-xs font-semibold uppercase tracking-wider mb-2" id="pocket-stage-pill">
+                    Awaiting Safety Confirmation
+                  </span>
+<h3 class="font-headline-md text-headline-md text-on-surface" id="pocket-stage-title">
+                    Place Device in Pocket or Carry Snugly
+                  </h3>
+<p class="font-body-md text-body-md text-on-surface-variant max-w-md mt-1" id="pocket-stage-desc">
+                    Once started, gentle chimes will sound when you begin walking, reach the 10-meter turn point, and complete the exercise.
+                  </p>
+<!-- 3-Stage Progress Ribbon -->
+<div class="w-full max-w-md mt-6 flex items-center gap-2">
+<div class="flex-1 h-2 rounded-full bg-surface-container-highest transition-colors" id="walk-stage-1"></div>
+<div class="flex-1 h-2 rounded-full bg-surface-container-highest transition-colors" id="walk-stage-2"></div>
+<div class="flex-1 h-2 rounded-full bg-surface-container-highest transition-colors" id="walk-stage-3"></div>
+</div>
+<div class="flex justify-between w-full max-w-md text-[11px] text-on-surface-variant font-medium mt-1">
+<span>1. Outward 10m</span>
+<span>2. Calm Turn</span>
+<span>3. Return 10m</span>
+</div>
+<!-- Start Cadence Walk button -->
+<div class="mt-6 flex flex-wrap gap-space-sm justify-center">
+<button class="h-12 px-space-lg rounded-full bg-surface-variant text-outline cursor-not-allowed shadow-none flex items-center gap-2 font-label-md text-label-md transition-all" disabled="" id="start-walk-btn" onclick="startWalkSimulator()">
+<span class="material-symbols-outlined text-[20px]">directions_walk</span>
+<span>Begin Cadence Walk</span>
+</button>
+<button class="h-12 px-space-md rounded-full bg-surface-container hover:bg-surface-container-high text-on-surface flex items-center gap-2 font-label-md text-label-md cursor-pointer" onclick="resetWalkSimulator()">
+<span class="material-symbols-outlined text-[20px]">replay</span>
+<span>Reset</span>
+</button>
+</div>
+</div>
+<!-- Navigation buttons for Module C -->
+<div class="w-full flex flex-col sm:flex-row items-center justify-between gap-space-sm mt-space-md pt-space-md border-t border-outline-variant/30">
+<button class="h-12 px-space-md rounded-full bg-surface-container hover:bg-surface-container-high text-on-surface flex items-center gap-2 font-label-md text-label-md cursor-pointer" onclick="switchModule('module-b')">
+<span class="material-symbols-outlined text-[20px]">arrow_back</span>
+<span>Back to Hand Stability</span>
+</button>
+<button class="h-12 px-space-lg rounded-full bg-secondary hover:bg-primary-container text-on-secondary shadow-md flex items-center gap-space-xs font-label-md text-label-md transition-all cursor-pointer" onclick="finishAssessmentAndShowReport()">
+<span>Complete Session &amp; Generate Report</span>
+<span class="material-symbols-outlined text-[20px]">task_alt</span>
+</button>
+</div>
+</div>
+</section>
+</div>
+<!-- RIGHT COLUMN: LIVE PHYSIOLOGICAL TELEMETRY & UPCOMING MODULES -->
+<aside class="lg:col-span-4 flex flex-col gap-space-lg">
+<!-- Live Acoustic Metrics Card -->
+<div class="bg-surface-container-lowest rounded-xl p-space-lg shadow-sm flex flex-col gap-space-md">
+<div class="flex items-center justify-between">
+<h3 class="font-headline-sm text-headline-sm text-on-surface" id="telemetry-panel-title">Acoustic Indicators</h3>
+<span class="font-label-sm text-label-sm px-space-xs py-0.5 rounded-full bg-surface-container-low text-secondary font-semibold" id="telemetry-badge">Live Telemetry</span>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant">
+                These values are benchmarked against healthy age-matched reference baselines.
+              </p>
+<div class="flex flex-col gap-space-sm mt-space-xs">
+<!-- Metric 1: F0 -->
+<div class="bg-surface-container-low rounded-xl p-space-md flex flex-col gap-space-xs">
+<div class="flex items-center justify-between">
+<span class="font-label-md text-label-md text-on-surface font-semibold" id="m1-title">Fundamental Frequency (F0)</span>
+<span class="material-symbols-outlined text-[20px] text-secondary">check_circle</span>
+</div>
+<div class="flex items-baseline gap-space-xs">
+<span class="font-metric-value text-metric-value text-on-surface font-bold" id="metric-f0-val">142</span>
+<span class="font-metric-unit text-metric-unit text-on-surface-variant" id="m1-unit">Hz</span>
+</div>
+<div class="w-full bg-surface-container-highest h-2 rounded-full overflow-hidden mt-1">
+<div class="bg-secondary h-full rounded-full transition-all duration-300" id="metric-f0-bar" style="width: 68%;"></div>
+</div>
+<span class="font-body-sm text-body-sm text-on-surface-variant mt-1" id="m1-desc">Reassuring steady pitch within expected range (120–165 Hz).</span>
+</div>
+<!-- Metric 2: Harmonic Ratio -->
+<div class="bg-surface-container-low rounded-xl p-space-md flex flex-col gap-space-xs">
+<div class="flex items-center justify-between">
+<span class="font-label-md text-label-md text-on-surface font-semibold" id="m2-title">Harmonic-to-Noise Ratio</span>
+<span class="material-symbols-outlined text-[20px] text-secondary">check_circle</span>
+</div>
+<div class="flex items-baseline gap-space-xs">
+<span class="font-metric-value text-metric-value text-on-surface font-bold" id="metric-hnr-val">24.2</span>
+<span class="font-metric-unit text-metric-unit text-on-surface-variant" id="m2-unit">dB</span>
+</div>
+<div class="w-full bg-surface-container-highest h-2 rounded-full overflow-hidden mt-1">
+<div class="bg-secondary h-full rounded-full transition-all duration-300" id="metric-hnr-bar" style="width: 82%;"></div>
+</div>
+<span class="font-body-sm text-body-sm text-on-surface-variant mt-1" id="m2-desc">Optimal vocal cord closure with clean acoustic resonance.</span>
+</div>
+<!-- Metric 3: Pause Duration -->
+<div class="bg-surface-container-low rounded-xl p-space-md flex flex-col gap-space-xs">
+<div class="flex items-center justify-between">
+<span class="font-label-md text-label-md text-on-surface font-semibold" id="m3-title">Pause Naturalness</span>
+<span class="material-symbols-outlined text-[20px] text-secondary">check_circle</span>
+</div>
+<div class="flex items-baseline gap-space-xs">
+<span class="font-metric-value text-metric-value text-on-surface font-bold" id="metric-pause-val">0.42</span>
+<span class="font-metric-unit text-metric-unit text-on-surface-variant" id="m3-unit">sec</span>
+</div>
+<div class="w-full bg-surface-container-highest h-2 rounded-full overflow-hidden mt-1">
+<div class="bg-secondary h-full rounded-full transition-all duration-300" id="metric-pause-bar" style="width: 55%;"></div>
+</div>
+<span class="font-body-sm text-body-sm text-on-surface-variant mt-1" id="m3-desc">Unforced, calm breathing rhythm between phonetic phrases.</span>
+</div>
+</div>
+</div>
+<!-- UPCOMING MODULES TEASERS (Clickable to switch modules) -->
+<div class="flex flex-col gap-space-sm">
+<div class="flex items-center justify-between px-space-xs">
+<span class="font-label-sm text-label-sm uppercase tracking-wider text-on-surface-variant font-bold">Upcoming In This Session</span>
+<span class="font-label-sm text-label-sm text-secondary font-medium">Estimated 6 mins</span>
+</div>
+<!-- Module B Teaser Card -->
+<div class="bg-surface-container-lowest rounded-xl p-space-md shadow-sm flex items-start gap-space-md hover:bg-surface-container-low/80 cursor-pointer transition-colors border border-transparent hover:border-secondary/20" onclick="switchModule('module-b')">
+<div class="w-12 h-12 rounded-xl bg-surface-container flex items-center justify-center text-on-surface shrink-0">
+<span class="material-symbols-outlined text-[24px]">front_hand</span>
+</div>
+<div class="flex flex-col">
+<div class="flex items-center gap-space-xs">
+<span class="font-label-sm text-label-sm text-secondary font-semibold">Module B</span>
+<span class="font-label-sm text-label-sm text-on-surface-variant">· 10-Second Test</span>
+</div>
+<h4 class="font-headline-sm text-headline-sm text-on-surface">Resting Hand Stability</h4>
+<p class="font-body-sm text-body-sm text-on-surface-variant mt-1">
+                    Place the device flat on your lap while resting your hands comfortably to capture micro-tremor rhythm.
+                  </p>
+</div>
+</div>
+<!-- Module C Teaser Card -->
+<div class="bg-surface-container-lowest rounded-xl p-space-md shadow-sm flex items-start gap-space-md hover:bg-surface-container-low/80 cursor-pointer transition-colors border border-transparent hover:border-secondary/20" onclick="switchModule('module-c')">
+<div class="w-12 h-12 rounded-xl bg-surface-container flex items-center justify-center text-on-surface shrink-0">
+<span class="material-symbols-outlined text-[24px]">directions_walk</span>
+</div>
+<div class="flex flex-col">
+<div class="flex items-center gap-space-xs">
+<span class="font-label-sm text-label-sm text-secondary font-semibold">Module C</span>
+<span class="font-label-sm text-label-sm text-on-surface-variant">· 20-Meter Track</span>
+</div>
+<h4 class="font-headline-sm text-headline-sm text-on-surface">Guided Cadence Walk</h4>
+<p class="font-body-sm text-body-sm text-on-surface-variant mt-1">
+                    Pocket sensor gait measurement with friendly audio cues and integrated balance reassurance.
+                  </p>
+<div class="flex items-center gap-1.5 mt-2 text-on-surface-variant font-label-sm text-label-sm">
+<span class="material-symbols-outlined text-[16px] text-secondary">chair</span>
+<span>Seated rest break provided beforehand</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Caregiver & Accessibility Rest Mini Card -->
+<div class="bg-surface-container-low hover:bg-surface-container rounded-xl p-space-md flex items-center gap-space-md cursor-pointer transition-colors border border-secondary/10" onclick="openModal('rest-modal')" title="Click anytime to pause for tea, breath or water">
+<div class="w-10 h-10 rounded-full bg-secondary/10 flex items-center justify-center text-secondary shrink-0">
+<span class="material-symbols-outlined text-[22px]">contact_support</span>
+</div>
+<div class="flex flex-col">
+<div class="flex items-center justify-between">
+<span class="font-label-sm text-label-sm text-on-surface font-semibold">Need a moment or have a question?</span>
+<span class="text-xs text-secondary font-semibold">Take a Break →</span>
+</div>
+<span class="font-body-sm text-body-sm text-on-surface-variant">You can pause or step away anytime without losing recorded progress.</span>
+</div>
+</div>
+</aside>
+</div>
+</div>
+</div>
+<!-- VIEW 2: BASELINE CLINICAL REPORT (CURRENT) -->
+<div class="hidden flex-col w-full transition-opacity duration-300" id="view-report">
+<div class="max-w-7xl mx-auto w-full px-margin-sm lg:px-margin-lg py-space-md lg:py-space-lg flex flex-col gap-space-lg">
+<!-- Report Header Card -->
+<div class="bg-surface-container-lowest rounded-xl p-space-lg shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-space-md">
+<div class="flex flex-col">
+<div class="flex items-center gap-space-xs mb-1">
+<span class="px-space-xs py-0.5 rounded-full bg-secondary-container text-on-secondary-container text-xs font-bold uppercase">Report Generated · NM-84920</span>
+<span class="text-xs text-on-surface-variant">Arthur P. · Age 71 · Reference Norm Cohort NM-70</span>
+</div>
+<h1 class="font-headline-lg text-headline-lg text-on-surface">Longitudinal NeuroMetric Baseline Report</h1>
+<p class="font-body-md text-body-md text-on-surface-variant mt-1">
+              Clinical summary of speech acoustics, resting postural stability, and walking cadence kinematics.
+            </p>
+</div>
+<div class="flex items-center gap-space-xs">
+<button class="h-10 px-space-md rounded-full bg-surface-container hover:bg-surface-container-high text-on-surface flex items-center gap-2 text-sm font-semibold transition-colors cursor-pointer" onclick="window.print()">
+<span class="material-symbols-outlined text-[18px]">print</span>
+<span>Print / PDF</span>
+</button>
+<button class="h-10 px-space-md rounded-full bg-secondary text-on-secondary hover:bg-primary-container flex items-center gap-2 text-sm font-semibold transition-colors cursor-pointer" onclick="switchMainView('assessment')">
+<span class="material-symbols-outlined text-[18px]">play_circle</span>
+<span>Return to Assessment</span>
+</button>
+</div>
+</div>
+<!-- 3 Core Biomarker Pillars Grid -->
+<div class="grid grid-cols-1 md:grid-cols-3 gap-space-lg">
+<!-- Speech Acoustics Pillar -->
+<div class="bg-surface-container-lowest rounded-xl p-space-lg shadow-sm flex flex-col gap-space-md">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-2">
+<span class="w-8 h-8 rounded-full bg-secondary-container/60 text-secondary flex items-center justify-center material-symbols-outlined text-[20px]">graphic_eq</span>
+<h3 class="font-headline-sm text-headline-sm text-on-surface">Voice Acoustics</h3>
+</div>
+<span class="px-2 py-0.5 rounded-full bg-secondary-container text-on-secondary-container text-xs font-bold">Standard</span>
+</div>
+<div class="flex flex-col gap-2">
+<div class="flex justify-between items-center text-sm">
+<span class="text-on-surface-variant">Pitch (F0):</span>
+<span class="font-bold text-on-surface">142 Hz (Norm: 120-165 Hz)</span>
+</div>
+<div class="flex justify-between items-center text-sm">
+<span class="text-on-surface-variant">Harmonics-to-Noise:</span>
+<span class="font-bold text-on-surface">24.2 dB (Ideal &gt; 20 dB)</span>
+</div>
+<div class="flex justify-between items-center text-sm">
+<span class="text-on-surface-variant">Jitter / Shimmer:</span>
+<span class="font-bold text-on-surface">0.82% / 2.1% (Healthy range)</span>
+</div>
+<div class="flex justify-between items-center text-sm">
+<span class="text-on-surface-variant">Breath Cadence:</span>
+<span class="font-bold text-on-surface">132 wpm (Comfortable flow)</span>
+</div>
+</div>
+<div class="p-space-sm bg-surface-container rounded-lg text-xs text-on-surface-variant">
+              Conclusion: Phonation stability is robust with clean acoustic spectral envelope and zero atypical breath breaks.
+            </div>
+</div>
+<!-- Resting Stability Pillar -->
+<div class="bg-surface-container-lowest rounded-xl p-space-lg shadow-sm flex flex-col gap-space-md">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-2">
+<span class="w-8 h-8 rounded-full bg-secondary-container/60 text-secondary flex items-center justify-center material-symbols-outlined text-[20px]">front_hand</span>
+<h3 class="font-headline-sm text-headline-sm text-on-surface">Hand Stability</h3>
+</div>
+<span class="px-2 py-0.5 rounded-full bg-secondary-container text-on-secondary-container text-xs font-bold">Within Norm</span>
+</div>
+<div class="flex flex-col gap-2">
+<div class="flex justify-between items-center text-sm">
+<span class="text-on-surface-variant">Rest Frequency:</span>
+<span class="font-bold text-on-surface">3.8 Hz (Micro-physiological)</span>
+</div>
+<div class="flex justify-between items-center text-sm">
+<span class="text-on-surface-variant">Tremor Amplitude:</span>
+<span class="font-bold text-on-surface">&lt; 0.12 mm (Benign trace)</span>
+</div>
+<div class="flex justify-between items-center text-sm">
+<span class="text-on-surface-variant">Bilateral Symmetry:</span>
+<span class="font-bold text-on-surface">96% Coherence</span>
+</div>
+<div class="flex justify-between items-center text-sm">
+<span class="text-on-surface-variant">Postural Drift:</span>
+<span class="font-bold text-on-surface">Minimal / Stable center</span>
+</div>
+</div>
+<div class="p-space-sm bg-surface-container rounded-lg text-xs text-on-surface-variant">
+              Conclusion: No pathological resting tremor detected. Normal age-expected postural muscle tone.
+            </div>
+</div>
+<!-- Gait Cadence Pillar -->
+<div class="bg-surface-container-lowest rounded-xl p-space-lg shadow-sm flex flex-col gap-space-md">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-2">
+<span class="w-8 h-8 rounded-full bg-secondary-container/60 text-secondary flex items-center justify-center material-symbols-outlined text-[20px]">directions_walk</span>
+<h3 class="font-headline-sm text-headline-sm text-on-surface">Gait Cadence</h3>
+</div>
+<span class="px-2 py-0.5 rounded-full bg-secondary-container text-on-secondary-container text-xs font-bold">Safe &amp; Steady</span>
+</div>
+<div class="flex flex-col gap-2">
+<div class="flex justify-between items-center text-sm">
+<span class="text-on-surface-variant">Walking Speed:</span>
+<span class="font-bold text-on-surface">1.18 m/s (Independent)</span>
+</div>
+<div class="flex justify-between items-center text-sm">
+<span class="text-on-surface-variant">Stride Variability:</span>
+<span class="font-bold text-on-surface">2.4% (Consistent stride)</span>
+</div>
+<div class="flex justify-between items-center text-sm">
+<span class="text-on-surface-variant">Turn Velocity:</span>
+<span class="font-bold text-on-surface">1.9 sec (Balanced turn)</span>
+</div>
+<div class="flex justify-between items-center text-sm">
+<span class="text-on-surface-variant">Dual-Task Cost:</span>
+<span class="font-bold text-on-surface">Negligible (&lt; 4%)</span>
+</div>
+</div>
+<div class="p-space-sm bg-surface-container rounded-lg text-xs text-on-surface-variant">
+              Conclusion: Safe walking velocity with stable turn dynamics and strong automatic balance regulation.
+            </div>
+</div>
+</div>
+<!-- Longitudinal Trend Chart Preview -->
+<div class="bg-surface-container-lowest rounded-xl p-space-lg shadow-sm flex flex-col gap-space-md">
+<div class="flex items-center justify-between">
+<div>
+<h3 class="font-headline-sm text-headline-sm text-on-surface">Longitudinal Stability Trajectory (6 Months)</h3>
+<p class="font-body-sm text-body-sm text-on-surface-variant">Consistent tracking over 6 sessions shows baseline stability within reassuring bounds.</p>
+</div>
+<span class="text-xs font-semibold text-secondary flex items-center gap-1">
+<span class="material-symbols-outlined text-[16px]">trending_flat</span> Steady Baseline
+            </span>
+</div>
+<div class="h-44 w-full bg-surface-container-low rounded-xl p-space-md flex flex-col justify-end">
+<!-- Simulated trend sparkline bar graph -->
+<div class="flex items-end justify-between h-32 gap-3 pt-4">
+<div class="flex-1 flex flex-col items-center gap-1">
+<div class="w-full bg-secondary/70 hover:bg-secondary rounded-t-lg transition-all" style="height: 85%;"></div>
+<span class="text-[11px] text-on-surface-variant">Nov</span>
+</div>
+<div class="flex-1 flex flex-col items-center gap-1">
+<div class="w-full bg-secondary/70 hover:bg-secondary rounded-t-lg transition-all" style="height: 87%;"></div>
+<span class="text-[11px] text-on-surface-variant">Dec</span>
+</div>
+<div class="flex-1 flex flex-col items-center gap-1">
+<div class="w-full bg-secondary/70 hover:bg-secondary rounded-t-lg transition-all" style="height: 84%;"></div>
+<span class="text-[11px] text-on-surface-variant">Jan</span>
+</div>
+<div class="flex-1 flex flex-col items-center gap-1">
+<div class="w-full bg-secondary/70 hover:bg-secondary rounded-t-lg transition-all" style="height: 89%;"></div>
+<span class="text-[11px] text-on-surface-variant">Feb</span>
+</div>
+<div class="flex-1 flex flex-col items-center gap-1">
+<div class="w-full bg-secondary/70 hover:bg-secondary rounded-t-lg transition-all" style="height: 88%;"></div>
+<span class="text-[11px] text-on-surface-variant">Mar</span>
+</div>
+<div class="flex-1 flex flex-col items-center gap-1">
+<div class="w-full bg-secondary rounded-t-lg shadow-md transition-all ring-2 ring-secondary/30" style="height: 90%;"></div>
+<span class="text-[11px] font-bold text-secondary">Today</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</main>
+<!-- MODAL 1: SAVE & EXIT CONFIRMATION MODAL -->
+<div class="fixed inset-0 z-50 flex items-center justify-center bg-inverse-surface/50 backdrop-blur-sm opacity-0 pointer-events-none transition-opacity duration-200 p-4" id="save-exit-modal">
+<div class="bg-surface-container-lowest rounded-2xl max-w-md w-full p-space-lg shadow-2xl flex flex-col gap-space-md border border-outline-variant/30 transform scale-95 transition-transform duration-200" id="save-exit-modal-box">
+<div class="w-12 h-12 rounded-full bg-secondary-container flex items-center justify-center text-secondary">
+<span class="material-symbols-outlined text-[28px]">lock_reset</span>
+</div>
+<div class="flex flex-col">
+<h3 class="font-headline-sm text-headline-sm text-on-surface">Your progress is saved securely</h3>
+<p class="font-body-md text-body-md text-on-surface-variant mt-1">
+          You can return to Arthur's session anytime. All recorded acoustics and kinetic measurements are encrypted and saved to this local terminal.
+        </p>
+</div>
+<div class="flex flex-col sm:flex-row items-center justify-end gap-space-xs pt-space-xs border-t border-outline-variant/20">
+<button class="w-full sm:w-auto h-11 px-space-md rounded-full bg-surface-container hover:bg-surface-container-high text-on-surface font-label-md text-label-md transition-colors cursor-pointer" onclick="closeModal('save-exit-modal')">
+          Continue Session
+        </button>
+<button class="w-full sm:w-auto h-11 px-space-md rounded-full bg-primary hover:bg-primary-container text-on-primary font-label-md text-label-md transition-colors cursor-pointer" onclick="confirmExit()">
+          Exit to Dashboard
+        </button>
+</div>
+</div>
+</div>
+<!-- MODAL 2: NEED A REST BREAK MODAL -->
+<div class="fixed inset-0 z-50 flex items-center justify-center bg-inverse-surface/50 backdrop-blur-sm opacity-0 pointer-events-none transition-opacity duration-200 p-4" id="rest-modal">
+<div class="bg-surface-container-lowest rounded-2xl max-w-md w-full p-space-lg shadow-2xl flex flex-col gap-space-md border border-outline-variant/30 transform scale-95 transition-transform duration-200" id="rest-modal-box">
+<div class="w-12 h-12 rounded-full bg-secondary-container flex items-center justify-center text-secondary">
+<span class="material-symbols-outlined text-[28px]">local_cafe</span>
+</div>
+<div class="flex flex-col">
+<h3 class="font-headline-sm text-headline-sm text-on-surface">Take all the time you need</h3>
+<p class="font-body-md text-body-md text-on-surface-variant mt-1">
+          All recording sensors and timers are paused. Feel free to have a glass of water, adjust your seating, or rest your eyes.
+        </p>
+</div>
+<div class="bg-surface-container-low p-space-sm rounded-xl text-on-surface-variant text-sm flex items-center gap-2">
+<span class="material-symbols-outlined text-secondary text-[20px]">timer_off</span>
+<span>No timing countdowns are running.</span>
+</div>
+<div class="flex justify-end pt-space-xs">
+<button class="w-full sm:w-auto h-11 px-space-lg rounded-full bg-secondary hover:bg-primary-container text-on-secondary font-label-md text-label-md transition-all cursor-pointer" onclick="closeModal('rest-modal')">
+          I'm Ready to Resume
+        </button>
+</div>
+</div>
+</div>
+<!-- FOOTER -->
+<footer class="w-full bg-surface-container-low shadow-[0_-1px_6px_rgba(11,28,48,0.03)] mt-auto">
+<div class="max-w-7xl mx-auto px-margin-sm lg:px-margin-lg py-space-lg flex flex-col md:flex-row items-center justify-between gap-space-md">
+<div class="flex items-center gap-space-sm text-center md:text-left">
+<span class="material-symbols-outlined text-secondary text-[24px] shrink-0">verified_user</span>
+<p class="font-body-sm text-body-sm text-on-surface-variant max-w-xl">
+          NeuroMetric Digital Biomarker Research &amp; Monitoring · HIPAA Compliant · Data stored locally with zero commercial tracking.
+        </p>
+</div>
+<nav class="flex flex-wrap items-center justify-center gap-x-space-md gap-y-space-xs">
+<a class="font-label-sm text-label-sm text-on-surface-variant hover:text-secondary underline decoration-outline-variant underline-offset-4 transition-colors" href="#">Doctor Assistance Hotline</a>
+<a class="font-label-sm text-label-sm text-on-surface-variant hover:text-secondary underline decoration-outline-variant underline-offset-4 transition-colors" href="#">Caregiver Companion Guide</a>
+<a class="font-label-sm text-label-sm text-on-surface-variant hover:text-secondary underline decoration-outline-variant underline-offset-4 transition-colors" href="#">Patient Privacy &amp; Dignity Charter</a>
+</nav>
+</div>
+</footer>
+<!-- SCRIPT FOR COMPREHENSIVE PLATFORM INTERACTIVITY -->
+<script>
+    // Global state
+    let currentMainView = 'assessment';
+    let currentModule = 'module-a';
+    let isRecording = true;
+    let isEnlargedFont = false;
+    let isAudioAssistActive = false;
+    let isListeningBack = false;
+
+    // Module B timer state
+    let stabilityTimer = null;
+    let stabilitySecondsLeft = 10.0;
+    let stabilityRunning = false;
+
+    // Module C state
+    let walkStage = 0;
+    let walkInterval = null;
+
+    // Pronunciation sample simulation
+    let isPlayingSample = false;
+
+    // 1. Navigation Switcher
+    function switchMainView(view) {
+      currentMainView = view;
+      const assessEl = document.getElementById('view-assessment');
+      const reportEl = document.getElementById('view-report');
+      const btnAssess = document.getElementById('nav-btn-assessment');
+      const btnReport = document.getElementById('nav-btn-report');
+
+      if (view === 'assessment') {
+        assessEl.classList.remove('hidden');
+        reportEl.classList.add('hidden');
+        btnAssess.className = "px-space-md py-space-xs transition-colors duration-150 flex items-center bg-secondary text-on-secondary font-label-md text-label-md rounded-full shadow-sm";
+        btnReport.className = "px-space-md py-space-xs rounded-full font-label-md text-label-md text-on-surface-variant hover:text-on-surface transition-colors duration-150 flex items-center";
+      } else {
+        assessEl.classList.add('hidden');
+        reportEl.classList.remove('hidden');
+        btnReport.className = "px-space-md py-space-xs transition-colors duration-150 flex items-center bg-secondary text-on-secondary font-label-md text-label-md rounded-full shadow-sm";
+        btnAssess.className = "px-space-md py-space-xs rounded-full font-label-md text-label-md text-on-surface-variant hover:text-on-surface transition-colors duration-150 flex items-center";
+      }
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    // 2. Module Stepper Switcher
+    function switchModule(modId) {
+      currentModule = modId;
+      const modules = ['module-a', 'module-b', 'module-c'];
+      modules.forEach(m => {
+        const el = document.getElementById(m);
+        if (m === modId) {
+          el.classList.remove('hidden');
+        } else {
+          el.classList.add('hidden');
+        }
+      });
+
+      // Update stepper pills appearance
+      const pillA = document.getElementById('step-tab-a');
+      const pillB = document.getElementById('step-tab-b');
+      const pillC = document.getElementById('step-tab-c');
+      const dotA = document.getElementById('step-dot-a');
+      const dotB = document.getElementById('step-dot-b');
+      const dotC = document.getElementById('step-dot-c');
+      const txtA = document.getElementById('step-text-a');
+      const txtB = document.getElementById('step-text-b');
+      const txtC = document.getElementById('step-text-c');
+
+      const activeClasses = "flex items-center gap-space-xs px-space-md py-space-xs bg-secondary-container text-on-secondary-container rounded-full shadow-sm transition-all text-left";
+      const inactiveClasses = "flex items-center gap-space-xs px-space-md py-space-xs bg-surface-container-highest text-on-surface-variant hover:bg-surface-container rounded-full transition-all text-left";
+
+      pillA.className = (modId === 'module-a') ? activeClasses : inactiveClasses;
+      pillB.className = (modId === 'module-b') ? activeClasses : inactiveClasses;
+      pillC.className = (modId === 'module-c') ? activeClasses : inactiveClasses;
+
+      dotA.className = (modId === 'module-a') ? "w-2.5 h-2.5 rounded-full bg-secondary animate-pulse" : "w-2 h-2 rounded-full bg-outline-variant";
+      dotB.className = (modId === 'module-b') ? "w-2.5 h-2.5 rounded-full bg-secondary animate-pulse" : "w-2 h-2 rounded-full bg-outline-variant";
+      dotC.className = (modId === 'module-c') ? "w-2.5 h-2.5 rounded-full bg-secondary animate-pulse" : "w-2 h-2 rounded-full bg-outline-variant";
+
+      txtA.innerHTML = (modId === 'module-a') ? "1. Voice Rhythm (Active)" : "1. Voice Rhythm";
+      txtB.innerHTML = (modId === 'module-b') ? "2. Hand Stability (Active)" : "2. Hand Stability";
+      txtC.innerHTML = (modId === 'module-c') ? "3. Steady Walk (Active)" : "3. Steady Walk";
+
+      // Telemetry Side Panel Adaptation
+      updateSidePanelForModule(modId);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function updateSidePanelForModule(modId) {
+      const panelTitle = document.getElementById('telemetry-panel-title');
+      const m1Title = document.getElementById('m1-title');
+      const m1Val = document.getElementById('metric-f0-val');
+      const m1Unit = document.getElementById('m1-unit');
+      const m1Bar = document.getElementById('metric-f0-bar');
+      const m1Desc = document.getElementById('m1-desc');
+
+      const m2Title = document.getElementById('m2-title');
+      const m2Val = document.getElementById('metric-hnr-val');
+      const m2Unit = document.getElementById('m2-unit');
+      const m2Bar = document.getElementById('metric-hnr-bar');
+      const m2Desc = document.getElementById('m2-desc');
+
+      const m3Title = document.getElementById('m3-title');
+      const m3Val = document.getElementById('metric-pause-val');
+      const m3Unit = document.getElementById('m3-unit');
+      const m3Bar = document.getElementById('metric-pause-bar');
+      const m3Desc = document.getElementById('m3-desc');
+
+      if (modId === 'module-a') {
+        panelTitle.textContent = "Acoustic Indicators";
+        m1Title.textContent = "Fundamental Frequency (F0)";
+        m1Val.textContent = "142";
+        m1Unit.textContent = "Hz";
+        m1Bar.style.width = "68%";
+        m1Desc.textContent = "Reassuring steady pitch within expected range (120–165 Hz).";
+
+        m2Title.textContent = "Harmonic-to-Noise Ratio";
+        m2Val.textContent = "24.2";
+        m2Unit.textContent = "dB";
+        m2Bar.style.width = "82%";
+        m2Desc.textContent = "Optimal vocal cord closure with clean acoustic resonance.";
+
+        m3Title.textContent = "Pause Naturalness";
+        m3Val.textContent = "0.42";
+        m3Unit.textContent = "sec";
+        m3Bar.style.width = "55%";
+        m3Desc.textContent = "Unforced, calm breathing rhythm between phonetic phrases.";
+      } else if (modId === 'module-b') {
+        panelTitle.textContent = "Inertial Stability Indicators";
+        m1Title.textContent = "Micro-Tremor Frequency";
+        m1Val.textContent = "3.8";
+        m1Unit.textContent = "Hz";
+        m1Bar.style.width = "40%";
+        m1Desc.textContent = "Normal physiological micro-vibration; no Parkinsonian rest tremor.";
+
+        m2Title.textContent = "Displacement Amplitude";
+        m2Val.textContent = "0.08";
+        m2Unit.textContent = "mm";
+        m2Bar.style.width = "22%";
+        m2Desc.textContent = "Stable resting state with high hand tranquility.";
+
+        m3Title.textContent = "Bilateral Postural Balance";
+        m3Val.textContent = "96";
+        m3Unit.textContent = "%";
+        m3Bar.style.width = "96%";
+        m3Desc.textContent = "Harmonious symmetric resting relaxation on both sides.";
+      } else if (modId === 'module-c') {
+        panelTitle.textContent = "Gait & Cadence Indicators";
+        m1Title.textContent = "Pacing Velocity";
+        m1Val.textContent = "1.18";
+        m1Unit.textContent = "m/s";
+        m1Bar.style.width = "75%";
+        m1Desc.textContent = "Confident, comfortable stride within standard clinical baseline.";
+
+        m2Title.textContent = "Stride Regularity";
+        m2Val.textContent = "98.2";
+        m2Unit.textContent = "%";
+        m2Bar.style.width = "94%";
+        m2Desc.textContent = "Equal bilateral footfall timing without shuffling.";
+
+        m3Title.textContent = "Turning Smoothness";
+        m3Val.textContent = "1.9";
+        m3Unit.textContent = "sec";
+        m3Bar.style.width = "80%";
+        m3Desc.textContent = "Fluid pivot without hesitation or freezing.";
+      }
+    }
+
+    // 3. Font Size Accessibility Toggle
+    function toggleFontSize() {
+      isEnlargedFont = !isEnlargedFont;
+      const prompter = document.getElementById('prompter-card');
+      const btn = document.getElementById('font-scale-btn');
+      const lbl = document.getElementById('font-scale-label');
+
+      if (isEnlargedFont) {
+        prompter.classList.add('prompter-font-enlarged');
+        btn.classList.add('bg-secondary-container', 'text-on-secondary-container');
+        lbl.textContent = "A+ (Large)";
+        showToast("Font size enlarged for relaxed reading");
+      } else {
+        prompter.classList.remove('prompter-font-enlarged');
+        btn.classList.remove('bg-secondary-container', 'text-on-secondary-container');
+        lbl.textContent = "A / A+";
+        showToast("Font size reset to default");
+      }
+    }
+
+    // 4. Audio Assist Toggle
+    function toggleAudioAssist() {
+      isAudioAssistActive = !isAudioAssistActive;
+      const btn = document.getElementById('audio-assist-btn');
+      const icon = document.getElementById('audio-assist-icon');
+      const txt = document.getElementById('audio-assist-text');
+
+      if (isAudioAssistActive) {
+        btn.classList.add('bg-secondary-container', 'text-on-secondary-container');
+        icon.textContent = 'record_voice_over';
+        txt.textContent = 'Audio Assist ON';
+        showToast('Audio Guidance active: "Take your time, speak clearly at your own pace."');
+      } else {
+        btn.classList.remove('bg-secondary-container', 'text-on-secondary-container');
+        icon.textContent = 'volume_up';
+        txt.textContent = 'Audio Assist';
+        showToast('Audio Guidance muted');
+      }
+    }
+
+    function showToast(msg) {
+      const toast = document.getElementById('assist-toast');
+      const toastTxt = document.getElementById('assist-toast-text');
+      if (!toast) return;
+      toastTxt.textContent = msg;
+      toast.classList.remove('translate-y-24', 'opacity-0');
+      setTimeout(() => {
+        toast.classList.add('translate-y-24', 'opacity-0');
+      }, 3500);
+    }
+
+    // 5. Microphone Recording & Waveform Canvas Animation
+    const micBtn = document.getElementById('mic-toggle-btn');
+    const pauseBtn = document.getElementById('pause-btn');
+    const pauseBtnIcon = document.getElementById('pause-btn-icon');
+    const pauseBtnText = document.getElementById('pause-btn-text');
+    const micIcon = document.getElementById('mic-icon');
+    const micLabel = document.getElementById('mic-state-label');
+    const pulseRing1 = document.getElementById('pulse-ring-1');
+    const pulseRing2 = document.getElementById('pulse-ring-2');
+    const micHeadline = document.getElementById('mic-headline');
+    const micSubtext = document.getElementById('mic-subtext');
+    const canvas = document.getElementById('live-wave-canvas');
+    let ctx = canvas ? canvas.getContext('2d') : null;
+    let waveStep = 0;
+    let animFrame = null;
+
+    function toggleRecordingState() {
+      isRecording = !isRecording;
+      if (isRecording) {
+        micIcon.textContent = 'mic';
+        micLabel.textContent = 'Recording';
+        micHeadline.textContent = 'Listening to your natural voice...';
+        micSubtext.textContent = 'Continuous neural filter active · Tap the circular button any time to pause';
+        pulseRing1.classList.remove('hidden');
+        pulseRing2.classList.remove('hidden');
+        pulseRing1.classList.add('animate-ping');
+        pulseRing2.classList.add('animate-pulse');
+        pauseBtnIcon.textContent = 'pause_circle';
+        pauseBtnText.textContent = 'Pause Recording';
+        document.getElementById('wave-dot').classList.add('animate-ping');
+        document.getElementById('buffer-state').textContent = 'Buffer: Active';
+        showToast('Microphone recording resumed');
+      } else {
+        micIcon.textContent = 'mic_off';
+        micLabel.textContent = 'Paused';
+        micHeadline.textContent = 'Recording Paused';
+        micSubtext.textContent = 'Take your time. Tap microphone or "Resume Recording" when you are ready';
+        pulseRing1.classList.add('hidden');
+        pulseRing2.classList.add('hidden');
+        pulseRing1.classList.remove('animate-ping');
+        pulseRing2.classList.remove('animate-pulse');
+        pauseBtnIcon.textContent = 'play_circle';
+        pauseBtnText.textContent = 'Resume Recording';
+        document.getElementById('wave-dot').classList.remove('animate-ping');
+        document.getElementById('buffer-state').textContent = 'Buffer: Paused';
+        showToast('Microphone paused');
+      }
+    }
+
+    if (micBtn) micBtn.addEventListener('click', toggleRecordingState);
+    if (pauseBtn) pauseBtn.addEventListener('click', toggleRecordingState);
+
+    // Dynamic Live Waveform Canvas Render Loop
+    function renderWaveform() {
+      if (!ctx || !canvas) return;
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      const midY = canvas.height / 2;
+      const width = canvas.width;
+
+      if (isRecording) {
+        waveStep += 0.05;
+
+        // Background subtle layer
+        ctx.beginPath();
+        ctx.strokeStyle = '#89f5e7';
+        ctx.lineWidth = 1.8;
+        for (let x = 0; x < width; x += 3) {
+          const y = midY + Math.sin(x * 0.02 + waveStep) * 16 * Math.sin(x * 0.008);
+          if (x === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+
+        // Main primary vocal wave
+        ctx.beginPath();
+        ctx.strokeStyle = '#006a61';
+        ctx.lineWidth = 2.8;
+        for (let x = 0; x < width; x += 3) {
+          const y = midY + Math.sin(x * 0.035 + waveStep * 1.5) * 26 * Math.cos(x * 0.005);
+          if (x === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+
+        // Random subtle metric jitter for realism
+        if (Math.random() < 0.08) {
+          const f0El = document.getElementById('metric-f0-val');
+          if (f0El && currentModule === 'module-a') {
+            const jitter = 140 + Math.floor(Math.random() * 5);
+            f0El.textContent = jitter;
+          }
+        }
+      } else {
+        // Paused flat calm line
+        ctx.beginPath();
+        ctx.strokeStyle = '#c5c6cd';
+        ctx.lineWidth = 2;
+        ctx.moveTo(0, midY);
+        ctx.lineTo(width, midY);
+        ctx.stroke();
+      }
+
+      animFrame = requestAnimationFrame(renderWaveform);
+    }
+    renderWaveform();
+
+    // 6. Listen Back & Pronunciation Playback
+    function toggleListenBack() {
+      isListeningBack = !isListeningBack;
+      const pBar = document.getElementById('playback-bar-container');
+      const slider = document.getElementById('pb-slider');
+      const listenBtnTxt = document.getElementById('listen-btn-text');
+      const listenIcon = document.getElementById('listen-icon');
+
+      if (isListeningBack) {
+        pBar.classList.remove('hidden');
+        listenBtnTxt.textContent = "Stop Playback";
+        listenIcon.textContent = "stop_circle";
+        showToast("Playing back recorded passage sample...");
+        
+        let pVal = 0;
+        const pInterval = setInterval(() => {
+          if (!isListeningBack || pVal >= 100) {
+            clearInterval(pInterval);
+            isListeningBack = false;
+            listenBtnTxt.textContent = "Listen Back";
+            listenIcon.textContent = "replay";
+            pBar.classList.add('hidden');
+            return;
+          }
+          pVal += 2;
+          slider.value = pVal;
+          const secs = Math.floor((pVal / 100) * 14);
+          document.getElementById('pb-current-time').textContent = `0:${secs < 10 ? '0' : ''}${secs}`;
+        }, 150);
+      } else {
+        pBar.classList.add('hidden');
+        listenBtnTxt.textContent = "Listen Back";
+        listenIcon.textContent = "replay";
+      }
+    }
+
+    function playPronunciationSample() {
+      const btnTxt = document.getElementById('sample-pronounce-txt');
+      if (isPlayingSample) return;
+      isPlayingSample = true;
+      btnTxt.textContent = "Playing Sample...";
+      showToast('Sample audio: "The autumn breeze moved gently through the tall pine trees..."');
+      setTimeout(() => {
+        btnTxt.textContent = "Play Pronunciation Sample";
+        isPlayingSample = false;
+      }, 3500);
+    }
+
+    // 7. MODULE B: Resting Hand Stability Interactive Test
+    function startStabilityTest() {
+      if (stabilityRunning) return;
+      stabilityRunning = true;
+      stabilitySecondsLeft = 10.0;
+      const bar = document.getElementById('stability-progress-bar');
+      const timerDisp = document.getElementById('stability-timer-display');
+      const driftDot = document.getElementById('stability-drift-dot');
+      const startBtn = document.getElementById('start-module-b-btn');
+      const note = document.getElementById('b-instruction-note');
+      const lbl = document.getElementById('b-countdown-label');
+
+      startBtn.classList.add('opacity-50', 'pointer-events-none');
+      driftDot.classList.add('drift-active');
+      lbl.textContent = "Capturing Micro-Tremor Baseline";
+      note.textContent = "Hold still and rest hands comfortably on lap...";
+
+      stabilityTimer = setInterval(() => {
+        stabilitySecondsLeft -= 0.1;
+        if (stabilitySecondsLeft <= 0) {
+          clearInterval(stabilityTimer);
+          stabilityRunning = false;
+          stabilitySecondsLeft = 0;
+          timerDisp.textContent = "0.0s — Complete!";
+          bar.style.width = "100%";
+          driftDot.classList.remove('drift-active');
+          lbl.textContent = "Stability Test Successful";
+          note.textContent = "Tremor reading recorded safely. Ready for Cadence Walk.";
+          startBtn.classList.remove('opacity-50', 'pointer-events-none');
+          showToast("Hand stability capture completed with high reliability score.");
+          return;
+        }
+
+        const pct = Math.round(((10.0 - stabilitySecondsLeft) / 10.0) * 100);
+        bar.style.width = `${pct}%`;
+        timerDisp.textContent = `${stabilitySecondsLeft.toFixed(1)} Seconds`;
+      }, 100);
+    }
+
+    function resetStabilityTest() {
+      if (stabilityTimer) clearInterval(stabilityTimer);
+      stabilityRunning = false;
+      stabilitySecondsLeft = 10.0;
+      document.getElementById('stability-progress-bar').style.width = "0%";
+      document.getElementById('stability-timer-display').textContent = "10.0 Seconds";
+      document.getElementById('stability-drift-dot').classList.remove('drift-active');
+      document.getElementById('start-module-b-btn').classList.remove('opacity-50', 'pointer-events-none');
+      document.getElementById('b-countdown-label').textContent = "Ready When You Are";
+      document.getElementById('b-instruction-note').textContent = "Press 'Begin Stability Test' to start the 10-second capture.";
+    }
+
+    // 8. MODULE C: Safety Gatekeeper & Walk Simulator
+    function validateWalkReadiness() {
+      const c1 = document.getElementById('walk-check-safe').checked;
+      const c2 = document.getElementById('walk-check-path').checked;
+      const btn = document.getElementById('start-walk-btn');
+      const pill = document.getElementById('pocket-stage-pill');
+
+      if (c1 && c2) {
+        btn.disabled = false;
+        btn.className = "h-12 px-space-lg rounded-full bg-secondary hover:bg-primary-container text-on-secondary shadow-md flex items-center gap-2 font-label-md text-label-md transition-all cursor-pointer";
+        pill.textContent = "Safety Verified · Ready to Walk";
+        pill.className = "px-space-sm py-0.5 rounded-full bg-secondary-container text-on-secondary-container text-xs font-semibold uppercase tracking-wider mb-2";
+      } else {
+        btn.disabled = true;
+        btn.className = "h-12 px-space-lg rounded-full bg-surface-variant text-outline cursor-not-allowed shadow-none flex items-center gap-2 font-label-md text-label-md transition-all";
+        pill.textContent = "Awaiting Safety Confirmation";
+        pill.className = "px-space-sm py-0.5 rounded-full bg-surface-container text-on-surface-variant text-xs font-semibold uppercase tracking-wider mb-2";
+      }
+    }
+
+    function startWalkSimulator() {
+      const card = document.getElementById('pocket-mode-card');
+      const badge = document.getElementById('pocket-icon-badge');
+      const symbol = document.getElementById('pocket-symbol');
+      const stagePill = document.getElementById('pocket-stage-pill');
+      const stageTitle = document.getElementById('pocket-stage-title');
+      const stageDesc = document.getElementById('pocket-stage-desc');
+      const bar1 = document.getElementById('walk-stage-1');
+      const bar2 = document.getElementById('walk-stage-2');
+      const bar3 = document.getElementById('walk-stage-3');
+
+      // Stage 1: Walking outward
+      walkStage = 1;
+      card.classList.add('bg-surface-container');
+      badge.className = "w-16 h-16 rounded-full bg-secondary text-on-secondary flex items-center justify-center mb-3 animate-bounce";
+      symbol.textContent = "directions_walk";
+      stagePill.textContent = "Phase 1: Outward 10 Meters";
+      stageTitle.textContent = "Walk at your normal comfortable speed";
+      stageDesc.textContent = "Audio tracking pace... Keep moving towards your reference turning point.";
+      bar1.classList.add('bg-secondary');
+      showToast("Chime: Walk initiated. Stride sensors recording.");
+
+      setTimeout(() => {
+        // Stage 2: Turn
+        walkStage = 2;
+        badge.className = "w-16 h-16 rounded-full bg-secondary-fixed text-on-secondary flex items-center justify-center mb-3";
+        symbol.textContent = "sync";
+        stagePill.textContent = "Phase 2: Pivot Turn (10m Mark)";
+        stageTitle.textContent = "Please turn smoothly in a wide, gentle circle";
+        stageDesc.textContent = "Turn cadence stable. Now proceed back to your starting chair.";
+        bar2.classList.add('bg-secondary');
+        showToast("Chime: Turn completed safely.");
+      }, 3500);
+
+      setTimeout(() => {
+        // Stage 3: Return
+        walkStage = 3;
+        symbol.textContent = "chair";
+        badge.className = "w-16 h-16 rounded-full bg-secondary text-on-secondary flex items-center justify-center mb-3";
+        stagePill.textContent = "Phase 3: Completed Successfully";
+        stageTitle.textContent = "Great job, Arthur. Please sit back down.";
+        stageDesc.textContent = "Gait kinematics captured: 1.18 m/s, zero balance perturbations.";
+        bar3.classList.add('bg-secondary');
+        showToast("Chime: Cadence walk complete. Full session baseline generated!");
+      }, 7000);
+    }
+
+    function resetWalkSimulator() {
+      const card = document.getElementById('pocket-mode-card');
+      const badge = document.getElementById('pocket-icon-badge');
+      const symbol = document.getElementById('pocket-symbol');
+      const stagePill = document.getElementById('pocket-stage-pill');
+      const stageTitle = document.getElementById('pocket-stage-title');
+      const stageDesc = document.getElementById('pocket-stage-desc');
+      const bar1 = document.getElementById('walk-stage-1');
+      const bar2 = document.getElementById('walk-stage-2');
+      const bar3 = document.getElementById('walk-stage-3');
+
+      card.classList.remove('bg-surface-container');
+      badge.className = "w-16 h-16 rounded-full bg-surface-container-highest text-on-surface-variant flex items-center justify-center mb-3";
+      symbol.textContent = "stay_current_portrait";
+      validateWalkReadiness();
+      stageTitle.textContent = "Place Device in Pocket or Carry Snugly";
+      stageDesc.textContent = "Once started, gentle chimes will sound when you begin walking, reach the 10-meter turn point, and complete the exercise.";
+      bar1.classList.remove('bg-secondary');
+      bar2.classList.remove('bg-secondary');
+      bar3.classList.remove('bg-secondary');
+    }
+
+    function finishAssessmentAndShowReport() {
+      switchMainView('report');
+      showToast("Baseline assessment completed. Viewing comprehensive report.");
+    }
+
+    // 9. Modals (Save & Exit / Rest Break)
+    function openModal(id) {
+      const modal = document.getElementById(id);
+      if (!modal) return;
+      modal.classList.remove('opacity-0', 'pointer-events-none');
+      const box = modal.querySelector('div');
+      if (box) box.classList.remove('scale-95');
+    }
+
+    function closeModal(id) {
+      const modal = document.getElementById(id);
+      if (!modal) return;
+      modal.classList.add('opacity-0', 'pointer-events-none');
+      const box = modal.querySelector('div');
+      if (box) box.classList.add('scale-95');
+    }
+
+    function confirmExit() {
+      closeModal('save-exit-modal');
+      switchMainView('report');
+      showToast("Session auto-saved. Redirected to patient summary view.");
+    }
+  </script>
+</body></html>
