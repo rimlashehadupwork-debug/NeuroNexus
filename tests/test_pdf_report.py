@@ -1,5 +1,13 @@
 from modules.pdf_report import make_pdf
-from modules.reporting import key_measurement_rows
+from modules.pdf_report import _research_model_rows, _table
+from modules.reporting import (
+    completed_module_explanations,
+    humanize_feature_code,
+    key_measurement_rows,
+)
+from reportlab.pdfgen.canvas import Canvas
+from reportlab.platypus import Paragraph
+from io import BytesIO
 
 
 def test_missing_measurements_are_labelled_and_never_render_as_none_ms():
@@ -46,6 +54,8 @@ def test_pdf_includes_assessment_status_and_non_diagnostic_guide():
     pdf = make_pdf("Test participant", report, model_status)
 
     for section in (
+        b"How to Read Your Results",
+        b"Stroke count, path length, and the portion of the canvas used in your drawing.",
         b"Clock drawing",
         b"Speech features",
         b"Research model status",
@@ -55,6 +65,45 @@ def test_pdf_includes_assessment_status_and_non_diagnostic_guide():
         b"validated",
     ):
         assert section in pdf
+
+
+def test_research_status_validation_text_wraps_within_page_width():
+    model_status = {
+        "parkinsons": {
+            "available": False,
+            "message": "A detailed validation status " * 18,
+        },
+        "alzheimers": {
+            "available": True,
+            "subject_level": {"balanced_accuracy": 0.62},
+        },
+    }
+    widths = [112, 125, 291]
+    table = _table(_research_model_rows(model_status), widths, font_size=7.5)
+    canvas = Canvas(BytesIO())
+
+    table_width, _ = table.wrapOn(canvas, 528, 720)
+
+    assert table_width <= 528
+    paragraph = table._cellvalues[1][2][0]
+    assert isinstance(paragraph, Paragraph)
+    _, paragraph_height = paragraph.wrap(widths[2] - 10, 720)
+    assert paragraph_height > 9.5
+
+
+def test_completed_module_explanations_only_include_recorded_assessments():
+    explanations = completed_module_explanations({
+        "voice": {"duration_seconds": 5},
+        "cognitive_tasks": {"reaction_time": {"trials": 0}},
+    })
+
+    assert list(explanations) == ["Voice"]
+    assert "estimated vocal pitch" in explanations["Voice"]
+
+
+def test_dataset_feature_codes_use_plain_language_labels():
+    assert humanize_feature_code("gmrt_in_air7") == "Pen-air movement timing (task 7)"
+    assert humanize_feature_code("disp_index23") == "Drawing displacement index (task 23)"
 
 
 def test_pdf_clearly_discloses_synthetic_demo_values():

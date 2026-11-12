@@ -1,17 +1,52 @@
 from datetime import datetime, timezone
-import json, random, re, time
+import base64, json, random, re, time
 from pathlib import Path
 import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
 from streamlit_drawable_canvas import st_canvas
-from modules.config import APP_NAME, APP_VERSION, PRIVACY_NOTICE, DIAGNOSTIC_DISCLAIMER, CONSENT_TEXT
+from modules.config import (
+    APP_NAME,
+    APP_VERSION,
+    CONSENT_TEXT,
+    DIAGNOSTIC_DISCLAIMER,
+    PRIVACY_NOTICE,
+    STORAGE_ARCHITECTURE_NOTE,
+)
 from modules.audio_analysis import analyze_audio_bytes
 from modules.motion_analysis import analyze_motion, analyze_gait
-from modules.session import initialize_session, reset_session, assessment_completion
-from modules.demo_presets import load_demo_preset, synthetic_demo_modules, synthetic_demo_report
-from modules.reporting import build_report, report_json, key_measurement_rows
-from modules.accounts import init_db, register, authenticate, update_profile, save_session, user_sessions, caregiver_sessions, admin_overview, delete_user_sessions
+from modules.session import (
+    assessment_completion,
+    assessment_draft_payload,
+    has_assessment_progress,
+    initialize_session,
+    reset_session,
+    restore_assessment_draft,
+)
+from modules.reporting import (
+    build_report,
+    completed_module_explanations,
+    humanize_feature_code,
+    key_measurement_rows,
+    report_json,
+)
+from modules.accounts import (
+    authenticate,
+    caregiver_sessions,
+    delete_draft,
+    delete_user_sessions,
+    init_db,
+    is_duplicate_email_error,
+    load_draft,
+    register,
+    save_draft,
+    save_session,
+    storage_backend,
+    update_consent_flag,
+    update_profile,
+    user_sessions,
+    admin_overview,
+)
 from modules.pdf_report import make_pdf
 from modules.cognitive_tasks import reaction_summary
 from modules.clock_drawing import extract_clock_drawing_features, assess_darwin_feature_compatibility
@@ -22,13 +57,27 @@ from modules.praat_features import run_symptom_pattern_analysis
 
 st.set_page_config(page_title='NeuroNexus | Digital Biomarker Research', page_icon='🧠', layout='wide', initial_sidebar_state='expanded')
 init_db(); initialize_session(st.session_state)
-for k,v in {'user':None,'reaction_times':[],'reaction_times_demo':False,'reaction_started':None,'reaction_ready':False,'clock_result':None}.items():
+for k,v in {'user':None,'reaction_times':[],'reaction_started':None,'reaction_ready':False,'clock_result':None}.items():
     if k not in st.session_state: st.session_state[k]=v
+if (
+    st.session_state.get("user")
+    and has_assessment_progress(st.session_state)
+    and not st.session_state.get("draft_finalized", False)
+):
+    save_draft(
+        st.session_state.user["id"],
+        assessment_draft_payload(st.session_state),
+    )
 
 def navigate_workspace(page, directory_role=None):
     st.session_state['workspace_page']=page
     if directory_role is not None:
         st.session_state['directory_role']=directory_role
+
+
+def mark_assessment_changed():
+    st.session_state.draft_finalized=False
+
 
 st.markdown('''<style>
 @import url('https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
@@ -97,6 +146,9 @@ input:not([type="checkbox"]):not([type="radio"]),textarea,[data-baseweb="select"
 .nn-hero{position:relative;isolation:isolate;overflow:hidden;background:linear-gradient(120deg,#1E565C,#244F52);color:#fff;padding:32px 38px;border-radius:16px;margin-bottom:22px;box-shadow:0 12px 30px rgba(30,86,92,.12)}
 .nn-hero:after{content:"";position:absolute;z-index:-1;right:4%;top:10%;width:126px;height:126px;border-radius:32px;background:linear-gradient(rgba(255,255,255,.07),rgba(255,255,255,.07)),linear-gradient(90deg,transparent 42%,rgba(255,255,255,.09) 42% 58%,transparent 58%),linear-gradient(transparent 42%,rgba(255,255,255,.09) 42% 58%,transparent 58%);transform:rotate(12deg)}
 .nn-hero h1{color:#fff;font-size:clamp(2rem,4vw,3rem);line-height:1.15}
+.nn-hero-title{display:flex;align-items:center;gap:16px;margin:0 0 12px}
+.nn-hero-logo{width:72px;height:72px;flex:none}
+.nn-hero-title h1{margin:0}
 .nn-hero p{position:relative;color:#E3EFEC;font-size:18px;max-width:720px}
 .nn-card{background:#fff;border:1px solid var(--line);padding:22px;border-radius:16px;transition:transform .2s ease,box-shadow .2s ease,border-color .2s ease}
 .nn-card:hover{transform:translateY(-2px);border-color:#B8CFCA;box-shadow:0 10px 24px rgba(30,86,92,.08)}
@@ -120,7 +172,20 @@ input:not([type="checkbox"]):not([type="radio"]),textarea,[data-baseweb="select"
 
 # Auth entry
 if not st.session_state.user:
-    st.markdown('<div class="nn-hero"><h1>🧠 NeuroNexus</h1><p>A calmer way to explore voice, cognition and movement measurements.</p><span class="nn-pill">RESEARCH PROTOTYPE</span></div>',unsafe_allow_html=True)
+    logo_path=Path(__file__).resolve().parent/'assets'/'neuronexus-logo.svg'
+    logo_svg=logo_path.read_text(encoding='utf-8').split('<text',1)[0].replace(
+        'viewBox="0 0 520 120"',
+        'viewBox="0 0 120 120"',
+    )+'</svg>'
+    logo_data=base64.b64encode(logo_svg.encode('utf-8')).decode('ascii')
+    st.markdown(
+        f'<div class="nn-hero"><div class="nn-hero-title">'
+        f'<img class="nn-hero-logo" src="data:image/svg+xml;base64,{logo_data}" alt="">'
+        '<h1>NeuroNexus</h1></div>'
+        '<p>A calmer way to explore voice, cognition and movement measurements.</p>'
+        '<span class="nn-pill">RESEARCH PROTOTYPE</span></div>',
+        unsafe_allow_html=True,
+    )
     left,right=st.columns([1.05,1])
     with left:
         st.subheader('Welcome')
@@ -149,8 +214,21 @@ if not st.session_state.user:
             if create:
                 if not name.strip() or '@' not in email2 or len(pw)<10 or pw!=pw2 or not ok: st.error('Please complete all fields, use a password of at least 10 characters, and accept the notice.')
                 else:
-                    try: register(name,email2,pw,'caregiver' if account_role=='Caregiver' else 'individual',caregiver); st.success('Account created. Please sign in.');
-                    except Exception: st.error('That email may already be registered.')
+                    try:
+                        register(
+                            name,
+                            email2,
+                            pw,
+                            'caregiver' if account_role=='Caregiver' else 'individual',
+                            caregiver,
+                            consent_flags={"registration_acknowledged": True},
+                        )
+                        st.success('Account created. Please sign in.')
+                    except Exception as exc:
+                        if is_duplicate_email_error(exc):
+                            st.error('That email may already be registered.')
+                        else:
+                            raise
     st.stop()
 
 user=st.session_state.user
@@ -236,7 +314,7 @@ if page=='Admin overview':
         recent_table=recent_df.rename(columns={'id':'Session ID','created_at':'Date and time','name':'Account name','email':'Email'})
         recent_table['Date and time']=recent_table['Date and time'].dt.strftime('%b %d, %Y · %I:%M %p')
         st.dataframe(recent_table,hide_index=True,alt='Latest saved session activity')
-    st.info('This is a local prototype admin view. Before real deployment, add server-side authorization, audit logs, role management, secure hosting and a formal privacy/security review.')
+    st.info('This is a prototype admin view. Before real deployment, add server-side authorization, audit logs, role management, secure hosting and a formal privacy/security review.')
 elif page=='User directory':
     data=admin_overview(); st.title('User directory')
     people_df=pd.DataFrame(data['people'])
@@ -410,9 +488,13 @@ elif page=='My profile':
         history_key=f'local_history_enabled_{profile_generation}'
         if history_key not in st.session_state:
             st.session_state[history_key]=bool(st.session_state.get('local_history_enabled',False))
-        history_enabled=st.toggle('Enable local session history',key=history_key)
+        history_enabled=st.toggle('Enable saved session history',key=history_key)
         st.session_state.local_history_enabled=history_enabled
-        st.caption('When enabled, you may save derived reports to local SQLite from the Report tab. Turning this off does not delete reports already saved; use Purge My Session Data to delete them.')
+        st.caption(
+            'When enabled, you may save derived reports to the configured persistent '
+            'store from the Report tab. Turning this off does not delete saved reports; '
+            'use Purge My Session Data to delete them.'
+        )
         if st.button('Purge My Session Data',type='secondary'):
             deleted_sessions=delete_user_sessions(user['id'])
             reset_session(st.session_state)
@@ -420,11 +502,11 @@ elif page=='My profile':
             st.session_state.reaction_started=None
             st.session_state.reaction_ready=False
             st.session_state.profile_notice=(
-                f'Purged current session data and {deleted_sessions} saved local session '
+                f'Purged current session data and {deleted_sessions} saved session '
                 f'{"summary" if deleted_sessions == 1 else "summaries"}. Downloaded files remain.'
             )
             st.rerun()
-        st.caption('Purge removes this account’s saved session summaries and current in-memory assessment/context data. Downloaded files, account details, and system logs are outside this prototype control.')
+        st.caption('Purge removes this account’s finalized reports, local draft, and current in-memory assessment/context data. Downloaded files, account details, and system logs are outside this prototype control.')
     elif role_preview==role_options[1]:
         st.subheader('Linked participant')
         with st.container(border=True):
@@ -452,6 +534,13 @@ elif page=='My profile':
         )
         prior_notes_consent=bool(st.session_state.get('caregiver_notes_consent',False))
         st.session_state.caregiver_notes_consent=bool(notes_consent and st.session_state.get('consent_granted'))
+        if (
+            st.session_state.caregiver_notes_consent
+            and not (user.get("consent_flags") or {}).get("caregiver_notes", False)
+        ):
+            updated_flags=update_consent_flag(user["id"],"caregiver_notes",True)
+            user={**user,"consent_flags":updated_flags}
+            st.session_state.user=user
         if prior_notes_consent and not st.session_state.caregiver_notes_consent:
             st.session_state.caregiver_observation_notes=[]
             st.session_state.profile_widget_generation=profile_generation+1
@@ -561,6 +650,8 @@ elif page=='My profile':
 elif page=='Documentation':
     st.title('Technical & clinical reference')
     st.caption('Implementation facts, research provenance, safety boundaries, and a proposed path to evaluation. This prototype is not approved for clinical use.')
+    st.info(STORAGE_ARCHITECTURE_NOTE,title='Privacy-by-design storage')
+    st.caption(f'Persistent account/report backend: {storage_backend()}. Local assessment drafts remain on this app instance.')
     with st.expander('1. System architecture & multimodal pipeline',expanded=True):
         st.markdown("""
 **Design principle — “To Sense is to Predict” is an aspiration, not a current clinical claim.** NeuroNexus brings several optional signal tasks into one consent-gated Streamlit session and report. It does not combine them in a validated multimodal disease-prediction model.
@@ -569,7 +660,7 @@ elif page=='Documentation':
 2. **Separate sustained-vowel research path.** A sustained vowel can be processed with Praat-compatible settings for jitter, shimmer, HNR, pitch, and voice-break features. Those 26 features are passed to the existing Parkinson’s research artifact for an experimental pattern comparison. This result is task-specific, internally evaluated, and not a diagnosis or disease probability.
 3. **Clock drawing.** The current mouse/touch canvas records path geometry such as stroke count, approximate path length, direction changes, and bounding-box area. It has no calibrated pressure or reliable pointer timestamps, so DARWIN-style pen velocity, air/pause time, and pressure cannot be calculated. A DARWIN kinematic model is trained for research, but this canvas schema is incompatible and is not scored by that model.
 4. **Other behavioral/movement tasks.** Resting motion derives an acceleration-magnitude spectrum from a supplied CSV; gait reports candidate peaks and estimated cadence using a preliminary heuristic; reaction time is a browser/device response-time demonstration. None is a validated disease classifier.
-5. **Session and report.** Derived measurements are assembled into a JSON/PDF report. A user can explicitly save that summary to local SQLite. Raw sensor arrays and audio are not part of the compact saved summary.
+5. **Session and report.** Derived measurements are assembled into a JSON/PDF report. Finalized reports are saved only when a user explicitly saves them. Incomplete module results stay in a local SQLite draft and are removed on reset, sign-out, or successful report save; raw audio and sensor uploads are not copied into that draft.
 
 The speech-feature tab also computes descriptive transcript features (for example word count and type-token ratio). No trained Alzheimer’s speech classifier is installed.
 """)
@@ -613,8 +704,8 @@ Hospital use would require a defined intended use, prospective ethics-approved s
 - The consent checkbox gates access to assessment controls. It is not a validated e-consent workflow and no consent receipt is stored.
 - The UI tells participants not to say names or addresses. There is **no automatic PII detection or redaction**; de-identify transcripts and avoid identifiers in audio and uploads.
 - Audio features are computed in the active app session. Normalized voice bytes can remain in Streamlit session memory until the user clears the session, signs out, or the runtime session ends. Optional speech-audio extraction writes a temporary WAV under the OS temporary directory; the directory is removed when processing exits.
-- The clear-session and sign-out actions clear app-held assessment values and re-key upload/canvas widgets. They do not delete summaries already saved in SQLite, downloaded PDFs, browser data, or hosting-provider logs/backups.
-- Account names, email addresses, caregiver links, password salts/hashes, and explicitly saved derived summaries are stored in the local SQLite database. Passwords are PBKDF2-hashed; the database is not encrypted at rest. This local role/authentication setup is not production security.
+- Incomplete assessment module results are kept in a local SQLite `assessment_drafts` record to support resume. Clear-session, sign-out, and successful report-save remove that draft. Raw audio and sensor uploads are not stored in it.
+- Account names, email addresses, caregiver links, roles, consent flags, password salts/hashes, and explicitly saved derived reports use Supabase PostgreSQL when `DATABASE_URL` is configured, or local SQLite otherwise. Passwords are PBKDF2-hashed. Database encryption, access policies, backups, logs, and retention need separate review; this authentication and role setup is not production security.
 
 ### Responsible AI status
 
@@ -683,6 +774,18 @@ elif page=='My dashboard':
     else: st.info('Your saved session summaries will appear here after you complete assessments and choose Save session.')
 elif page=='My reports':
     st.title('My reports'); sessions=user_sessions(user['id'])
+    session_reports=[(session,json.loads(session['summary'])) for session in sessions]
+    saved_modules={}
+    for _,saved_report in session_reports:
+        saved_modules.update(completed_module_explanations(saved_report))
+    with st.container(border=True):
+        st.subheader('How to read your results')
+        if saved_modules:
+            for label,description in saved_modules.items():
+                st.markdown(f'- **{label}:** {description}')
+        else:
+            st.write('No completed modules are available in your saved reports yet.')
+        st.caption('These are descriptive measurements, not diagnoses or disease-risk estimates.')
     registry=get_registry()
     st.subheader('Research model status')
     park=registry['parkinsons']
@@ -729,8 +832,7 @@ elif page=='My reports':
     st.dataframe(pd.DataFrame(model_rows),hide_index=True,alt='Research model availability and validation status; not a personal risk result')
     st.caption('Model metrics describe research validation only. They are not patient-specific predictions. The current web canvas does not supply the DARWIN 25-task tablet feature schema.')
     if not sessions: st.info('No saved reports yet. Complete assessments and save a session first.')
-    for s in sessions:
-        report=json.loads(s['summary'])
+    for s,report in session_reports:
         with st.expander(f"Session · {s['created_at']}"):
             st.json(report)
             st.subheader('Key measurement breakdown')
@@ -746,23 +848,47 @@ elif page=='Screening assessments':
     with st.expander('Before you begin: consent and safety',expanded=not st.session_state.consent_granted):
         st.markdown(PRIVACY_NOTICE); st.checkbox(CONSENT_TEXT,key='consent_granted')
     if not st.session_state.consent_granted: st.info('Please provide consent before running analysis.'); st.stop()
+    if not (user.get("consent_flags") or {}).get("assessment", False):
+        updated_flags=update_consent_flag(user["id"],"assessment",True)
+        user={**user,"consent_flags":updated_flags}
+        st.session_state.user=user
+    if (
+        not st.session_state.get("draft_resumed", False)
+        and not has_assessment_progress(st.session_state)
+    ):
+        saved_draft=load_draft(user["id"])
+        if saved_draft:
+            completed_modules=sum(assessment_completion(saved_draft).values())
+            with st.container(border=True):
+                st.subheader('Unfinished assessment draft')
+                st.info(
+                    f'A local draft is available with {completed_modules} completed '
+                    'module(s). Raw audio and sensor uploads are not stored in the draft.'
+                )
+                resume_col,begin_col=st.columns(2)
+                if resume_col.button(
+                    'Resume Where You Left Off',
+                    type='primary',
+                    width='stretch',
+                ):
+                    restore_assessment_draft(st.session_state,saved_draft)
+                    st.session_state.draft_resumed=True
+                    st.session_state.draft_finalized=False
+                    st.rerun()
+                if begin_col.button(
+                    'Start From Beginning',
+                    type='secondary',
+                    width='stretch',
+                ):
+                    reset_session(st.session_state, reset_consent=False)
+                    st.session_state.reaction_times=[]
+                    st.session_state.reaction_started=None
+                    st.session_state.reaction_ready=False
+                    st.rerun()
     completion=assessment_completion(st.session_state)
     completed_count=sum(completion.values())
-    progress_col,clean_demo_col,variable_demo_col=st.columns([1.5,1,1])
-    with progress_col:
-        st.progress(completed_count/len(completion))
-        st.caption(f'Session Progress: {completed_count}/{len(completion)} modules completed')
-    with clean_demo_col:
-        if st.button('Load demo: Clean signals',type='secondary',key='load_clean_demo',width='stretch'):
-            load_demo_preset(st.session_state,'clean_signals')
-            st.rerun()
-    with variable_demo_col:
-        if st.button('Load demo: Variable signals',type='secondary',key='load_variable_demo',width='stretch'):
-            load_demo_preset(st.session_state,'variable_signals')
-            st.rerun()
-    synthetic_modules=synthetic_demo_modules(st.session_state)
-    if synthetic_modules:
-        st.caption('Demo values are synthetic display examples, not health profiles; trained models are not run on them.')
+    st.progress(completed_count/len(completion))
+    st.caption(f'Session Progress: {completed_count}/{len(completion)} modules completed')
     labels={
         'voice':'🎙️ Voice',
         'resting_motion':'📳 Resting motion',
@@ -787,9 +913,14 @@ elif page=='Screening assessments':
                 from modules.audio_analysis import to_standard_wav
                 wav_bytes,conv=to_standard_wav(chosen.getvalue()); st.session_state.voice_wav_bytes=wav_bytes
                 st.session_state.audio_result=analyze_audio_bytes(wav_bytes)
+                st.session_state.pattern_result=None
+                mark_assessment_changed()
                 st.success('Audio converted to WAV (16 kHz mono) — acoustic features extracted.' if conv['converted'] else 'Acoustic features extracted.')
                 st.rerun()
-            except Exception as e: st.session_state.audio_result=None; st.error(str(e))
+            except Exception as e:
+                st.session_state.audio_result=None
+                mark_assessment_changed()
+                st.error(str(e))
         r=st.session_state.audio_result
         if r:
             q=r['quality']; st.metric('Recording quality',f"{q['score']}/100 · {q['label']}"); st.caption('This is technical recording quality, not a disease score.')
@@ -806,14 +937,16 @@ elif page=='Screening assessments':
 
         if chosen is None:
             st.caption('Record or upload a voice sample above to enable pattern analysis.')
-        if st.button('Run experimental pattern analysis', disabled=chosen is None or (r or {}).get('source')=='synthetic_demo'):
+        if st.button('Run experimental pattern analysis', disabled=chosen is None):
             try:
                 from modules.praat_features import run_symptom_pattern_analysis
                 from modules.audio_analysis import to_standard_wav
                 src = st.session_state.get('voice_wav_bytes') or to_standard_wav(chosen.getvalue())[0]
                 st.session_state.pattern_result = run_symptom_pattern_analysis(src)
+                mark_assessment_changed()
             except Exception as e:
                 st.session_state.pattern_result = None
+                mark_assessment_changed()
                 st.error(f'Pattern analysis not run: {e}')
 
         pr = st.session_state.get('pattern_result')
@@ -830,8 +963,15 @@ elif page=='Screening assessments':
         st.subheader('Resting motion'); st.write('Record a short resting sensor sample using the companion phone logger, then upload its CSV.')
         mf=st.file_uploader('Upload motion CSV',type=['csv'],key=f"motion{st.session_state.upload_generation}")
         if st.button('Analyze resting motion',disabled=mf is None):
-            try: st.session_state.motion_result=analyze_motion(pd.read_csv(mf)); st.success('Motion features extracted.'); st.rerun()
-            except Exception as e: st.session_state.motion_result=None; st.error(str(e))
+            try:
+                st.session_state.motion_result=analyze_motion(pd.read_csv(mf))
+                mark_assessment_changed()
+                st.success('Motion features extracted.')
+                st.rerun()
+            except Exception as e:
+                st.session_state.motion_result=None
+                mark_assessment_changed()
+                st.error(str(e))
         r=st.session_state.motion_result
         if r:
             st.metric('Signal quality',f"{r['quality']['score']}/100"); a,b,c=st.columns(3); a.metric('Duration',f"{r['duration_seconds']:.1f}s"); b.metric('Sampling rate',f"{r['sample_rate_hz']:.1f}Hz"); c.metric('Dominant frequency',f"{r['dominant_frequency_hz']:.2f}Hz" if r['dominant_frequency_hz'] else 'Unavailable')
@@ -841,8 +981,15 @@ elif page=='Screening assessments':
         st.subheader('Gait assessment'); st.write('Only perform this if walking is safe for you. Use a level, clear path and stop if dizzy or unsteady.')
         gf=st.file_uploader('Upload gait CSV',type=['csv'],key=f"gait{st.session_state.upload_generation}")
         if st.button('Analyze gait',disabled=gf is None):
-            try: st.session_state.gait_result=analyze_gait(pd.read_csv(gf)); st.success('Exploratory gait features extracted.'); st.rerun()
-            except Exception as e: st.session_state.gait_result=None; st.error(str(e))
+            try:
+                st.session_state.gait_result=analyze_gait(pd.read_csv(gf))
+                mark_assessment_changed()
+                st.success('Exploratory gait features extracted.')
+                st.rerun()
+            except Exception as e:
+                st.session_state.gait_result=None
+                mark_assessment_changed()
+                st.error(str(e))
         r=st.session_state.gait_result
         if r:
             a,b,c=st.columns(3); a.metric('Signal quality',f"{r['quality']['score']}/100"); b.metric('Candidate step events',r['candidate_step_events']); c.metric('Estimated cadence',f"{r['cadence_steps_per_min']:.1f}/min" if r['cadence_steps_per_min'] is not None else 'Unavailable'); st.caption(r['method_note'])
@@ -873,7 +1020,7 @@ elif page=='Screening assessments':
             st.info(sample_profile['notice'])
             st.dataframe(
                 pd.DataFrame([
-                    {'Feature':name,'Cohort median':value}
+                    {'Feature':humanize_feature_code(name),'Cohort median':value}
                     for name,value in sample_profile['features'].items()
                 ]),
                 hide_index=True,
@@ -902,6 +1049,7 @@ elif page=='Screening assessments':
                     'features':drawing_features,
                     'darwin_model_compatibility':darwin_compatibility,
                 }
+                mark_assessment_changed()
                 st.success('Drawing geometry recorded for this session.')
                 st.rerun()
             except ValueError as exc:
@@ -946,9 +1094,6 @@ elif page=='Screening assessments':
     with reaction_tab:
         st.subheader('Visual reaction-time activity'); st.write('Press Start, wait for the green signal, then tap as quickly as you comfortably can. Complete five trials.')
         if st.button('Start / reset reaction trial',type='primary'):
-            if st.session_state.get('reaction_times_demo'):
-                st.session_state.reaction_times=[]
-                st.session_state.reaction_times_demo=False
             st.session_state.reaction_started=time.perf_counter(); st.session_state.reaction_ready=False; st.session_state.reaction_delay=random.uniform(1.5,3.5)
         if st.session_state.reaction_started is not None:
             elapsed=time.perf_counter()-st.session_state.reaction_started
@@ -957,11 +1102,11 @@ elif page=='Screening assessments':
                 st.success('🟢 TAP NOW')
                 if st.button('I saw it — tap!',key=f"react{len(st.session_state.reaction_times)}"):
                     ms=(time.perf_counter()-st.session_state.reaction_started)*1000-st.session_state.get('reaction_delay',2)*1000
-                    st.session_state.reaction_times.append(max(0,round(ms,1))); st.session_state.reaction_started=None; st.session_state.reaction_ready=False; st.rerun()
+                    st.session_state.reaction_times.append(max(0,round(ms,1))); mark_assessment_changed(); st.session_state.reaction_started=None; st.session_state.reaction_ready=False; st.rerun()
             else: st.info('Wait for the green signal…'); time.sleep(.25); st.rerun()
         if st.session_state.reaction_times:
             summary=reaction_summary(st.session_state.reaction_times); a,b,c=st.columns(3); a.metric('Trials',summary['trials']); b.metric('Median response',f"{summary['median_ms']} ms"); c.metric('Response variability',f"{summary['variability_ms']} ms"); st.caption('Timing is affected by browser and device latency; this is not a clinical cognitive test.')
-            if st.button('Clear reaction trials'): st.session_state.reaction_times=[]; st.session_state.reaction_times_demo=False; st.rerun()
+            if st.button('Clear reaction trials'): st.session_state.reaction_times=[]; mark_assessment_changed(); st.rerun()
     with alz_tab:
         st.subheader("Alzheimer's speech features — research only")
         st.write('Describe your morning or a recent event in a few sentences (at least 10 words), or paste what you said in the voice task above.')
@@ -985,9 +1130,10 @@ elif page=='Screening assessments':
                         st.session_state.alz_result = run_alzheimers_feature_report(transcript, str(audio_path))
                 else:
                     st.session_state.alz_result = run_alzheimers_feature_report(transcript)
+                mark_assessment_changed()
                 st.rerun()
             except Exception as e:
-                st.session_state.alz_result = None; st.error(str(e))
+                st.session_state.alz_result = None; mark_assessment_changed(); st.error(str(e))
         ar = st.session_state.get('alz_result')
         if ar:
             feats = ar['features']
@@ -1011,9 +1157,17 @@ elif page=='Screening assessments':
             report['clock_drawing_measurements']=st.session_state.clock_result['features']
         _ar=st.session_state.get('alz_result')
         if _ar: report['alzheimers_speech_features']=_ar['features']
+        pattern_result=st.session_state.get('pattern_result')
+        if pattern_result:
+            report['voice_pattern_features']=pattern_result.get('compatible_features') or {}
         if st.session_state.get('darwin_sample_profile'):
             report['darwin_sample_profile']=st.session_state.darwin_sample_profile
         if st.session_state.get('consent_granted'):
+            report['consent_flags']={
+                'assessment':True,
+                'optional_profile_context':bool(st.session_state.get('baseline_context')),
+                'caregiver_observations':bool(st.session_state.get('caregiver_notes_consent')),
+            }
             if st.session_state.get('baseline_context'):
                 report['participant_context']=st.session_state.baseline_context
             if st.session_state.get('caregiver_notes_consent'):
@@ -1021,25 +1175,21 @@ elif page=='Screening assessments':
                 if notes:
                     report['caregiver_observations']=notes
             report['assisted_session_mode']=bool(st.session_state.get('assisted_session_mode'))
-        report['synthetic_demo']=synthetic_demo_report(
-            st.session_state.get('demo_profile'),
-            synthetic_demo_modules(st.session_state),
-        )
-        if report['synthetic_demo']:
-            st.warning(report['synthetic_demo']['notice'])
-        else:
-            st.info('This report contains measurements and task completion information, not a diagnosis or disease-risk estimate.')
+        st.info('This report contains measurements and task completion information, not a diagnosis or disease-risk estimate.')
         st.json(report)
         st.download_button('Download PDF report',make_pdf(user['name'],report,get_registry()),file_name='neuronexus_report.pdf',mime='application/pdf')
         st.download_button('Download JSON report',json.dumps(report,indent=2),file_name='neuronexus_report.json',mime='application/json')
         if st.session_state.get('local_history_enabled'):
             if st.button('Save session to my dashboard',type='primary'):
-                save_session(user['id'],report); st.success('Session summary saved to your account.')
+                save_session(user['id'],report)
+                delete_draft(user['id'])
+                st.session_state.draft_finalized=True
+                st.success('Finalized session report saved to your account.')
         else:
             st.button('Save session to my dashboard',type='primary',disabled=True)
-            st.caption('Enable local session history in My profile to save this summary to SQLite.')
+            st.caption('Enable saved session history in My profile to save this finalized report.')
     st.divider()
     if st.button('Clear current screening session'):
-        reset_session(st.session_state); st.session_state.reaction_times=[]; st.session_state.reaction_times_demo=False; st.session_state.reaction_started=None; st.session_state.reaction_ready=False; st.rerun()
+        reset_session(st.session_state, reset_consent=False); st.session_state.reaction_started=None; st.session_state.reaction_ready=False; st.rerun()
 
 st.divider(); st.caption('NeuroNexus 2.0 prototype · Not a medical device · Experimental measurements only · Seek a qualified clinician for health concerns.')

@@ -22,6 +22,11 @@ import pandas as pd
 import soundfile as sf
 import librosa
 
+try:
+    import parselmouth
+except ImportError:
+    parselmouth = None
+
 TARGET_SR = 16000
 MIN_VOICED_SECONDS = 3.0
 
@@ -42,7 +47,19 @@ def to_wav_mono16k(audio_bytes: bytes) -> tuple[np.ndarray, int]:
 
 def _praat_features(wav: np.ndarray, sr: int) -> dict:
     """Compute the 26 dataset-compatible features using Praat (parselmouth)."""
-    from parselmouth.praat import call
+    if parselmouth is None:
+        raise RuntimeError(
+            "Praat pattern analysis requires praat-parselmouth. "
+            "Install the project requirements and restart the app."
+        )
+    try:
+        from parselmouth.praat import call
+    except ImportError as exc:
+        raise RuntimeError(
+            "Praat pattern analysis is unavailable because praat-parselmouth "
+            "could not be loaded."
+        ) from exc
+
     snd = parselmouth.Sound(wav, sampling_frequency=sr)
     pitch = call(snd, "To Pitch", 0.0, 75.0, 600.0)
     point = call(snd, "To PointProcess (periodic, cc)", 75.0, 600.0)

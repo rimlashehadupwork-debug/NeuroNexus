@@ -11,3 +11,4 @@ reportlab>=4.0
 scikit-learn>=1.4
 joblib>=1.3
 praat-parselmouth
+psycopg[binary]>=3.2

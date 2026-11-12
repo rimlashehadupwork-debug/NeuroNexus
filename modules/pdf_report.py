@@ -10,6 +10,7 @@ from io import BytesIO
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import letter
 from reportlab.lib.styles import getSampleStyleSheet
+from reportlab.lib.styles import ParagraphStyle
 from reportlab.platypus import (
     Paragraph,
     SimpleDocTemplate,
@@ -18,7 +19,7 @@ from reportlab.platypus import (
     TableStyle,
 )
 
-from .reporting import key_measurement_rows
+from .reporting import completed_module_explanations, humanize_feature_code, key_measurement_rows
 
 
 NOT_COMPLETED = "Not completed"
@@ -41,7 +42,26 @@ def _paragraph(text, style):
 
 
 def _table(rows, widths, font_size=8):
-    table = Table(rows, colWidths=widths, repeatRows=1, hAlign="LEFT")
+    body_style = ParagraphStyle(
+        "TableBody",
+        fontName="Helvetica",
+        fontSize=font_size,
+        leading=font_size + 2,
+    )
+    header_style = ParagraphStyle(
+        "TableHeader",
+        parent=body_style,
+        fontName="Helvetica-Bold",
+        textColor=colors.white,
+    )
+    paragraph_rows = [
+        [
+            Paragraph(escape(_display_value(cell)), header_style if row_index == 0 else body_style)
+            for cell in row
+        ]
+        for row_index, row in enumerate(rows)
+    ]
+    table = Table(paragraph_rows, colWidths=widths, repeatRows=1, hAlign="LEFT")
     table.setStyle(TableStyle([
         ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#0d192b")),
         ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
@@ -55,6 +75,34 @@ def _table(rows, widths, font_size=8):
         ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
     ]))
     return table
+
+
+def _how_to_read_box(report, styles, width):
+    explanations = completed_module_explanations(report)
+    rows = [[Paragraph("How to Read Your Results", styles["Heading3"])]]
+    if explanations:
+        rows.extend(
+            [[Paragraph(f"<b>{escape(label)}:</b> {escape(description)}", styles["BodyText"])]]
+            for label, description in explanations.items()
+        )
+    else:
+        rows.append([
+            Paragraph(
+                "No completed assessment modules are recorded in this session.",
+                styles["BodyText"],
+            )
+        ])
+    box = Table(rows, colWidths=[width], hAlign="LEFT")
+    box.setStyle(TableStyle([
+        ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#edf5f2")),
+        ("BOX", (0, 0), (-1, -1), 0.7, colors.HexColor("#c6d8d2")),
+        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+        ("LEFTPADDING", (0, 0), (-1, -1), 9),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 9),
+        ("TOPPADDING", (0, 0), (-1, -1), 6),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
+    ]))
+    return box
 
 
 def _research_model_rows(model_status):
@@ -108,6 +156,8 @@ def make_pdf(name, report, model_status=None):
         Spacer(1, 8),
         _paragraph(f"Participant: {name}", styles["Normal"]),
         _paragraph(f"Generated: {report.get('created_utc')}", styles["Normal"]),
+        Spacer(1, 10),
+        _how_to_read_box(report, styles, doc.width),
         Spacer(1, 14),
         _paragraph(
             "Important: This is an experimental research summary, not a diagnosis "
@@ -178,7 +228,7 @@ def make_pdf(name, report, model_status=None):
         ])
         sample_rows = [["Selected feature", "Cohort median"]]
         for feature, value in (darwin_sample.get("features") or {}).items():
-            sample_rows.append([_display_value(feature), _display_value(value)])
+            sample_rows.append([humanize_feature_code(feature), _display_value(value)])
         if len(sample_rows) > 1:
             story.extend([
                 _table(sample_rows, [300, 228], font_size=7.5),
@@ -250,7 +300,7 @@ def make_pdf(name, report, model_status=None):
     if model_status:
         story.extend([
             _paragraph("Research model status", styles["Heading2"]),
-            _table(_research_model_rows(model_status), [115, 135, 278], font_size=7.5),
+            _table(_research_model_rows(model_status), [112, 125, 291], font_size=7.5),
             Spacer(1, 14),
             _paragraph(
                 "Model validation metrics describe research evaluation only. "
