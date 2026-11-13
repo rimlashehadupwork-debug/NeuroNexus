@@ -1,13 +1,17 @@
+> **🚀 Live application:** [Open NeuroNexus 2.0](https://streamlit.app)
+
 # NeuroNexus 2.0 — Multimodal Research Prototype
 
-A Streamlit prototype for exploring voice acoustics, smartphone motion, gait, a clock-drawing activity and simple reaction-time interactions. The interface follows the supplied Stitch NeuroBaseline reference: calm clinical minimalism, slate/navy structure, mineral teal accents, generous spacing and legible typography.
+NeuroNexus 2.0 (NeuroNexus18) is an interactive Streamlit web application for exploring multimodal digital biomarkers, including voice acoustic analysis, resting tremor FFT motion analysis, gait cadence tracking, clock-drawing tasks, and reaction-time testing. It is a research prototype for exploring signal measurements, not a medical diagnostic tool.
+
+The interface follows the supplied Stitch NeuroBaseline reference: calm clinical minimalism, slate/navy structure, mineral teal accents, generous spacing and legible typography.
 
 > **Medical safety:** This project does not diagnose, rule out, or estimate the probability of Alzheimer's disease or Parkinson's disease. No clinically validated disease classifier is included. Results are exploratory measurements only. A neurologist or other qualified clinician must assess health concerns.
 
 ## Included in this build
 
 - **Branding and UI:** NeuroNexus logo, responsive Streamlit layout, clinical-minimal design tokens inspired by the Stitch reference.
-- **Authentication demo:** individual, caregiver and administrator roles; salted PBKDF2 password hashes; local SQLite accounts.
+- **Authentication demo:** individual, caregiver and administrator roles; salted PBKDF2 password hashes; Supabase PostgreSQL storage when `DATABASE_URL` is configured, otherwise local SQLite.
 - **Individual dashboard:** session counts, recent saved summaries and navigation to assessments.
 - **Profile:** name and caregiver email linking.
 - **Voice analysis:** preserves the existing WAV recording/upload and acoustic feature extraction logic.
@@ -58,7 +62,7 @@ This is a prototype relationship mechanism only. A real deployment needs verifie
 2. Read the consent/data-handling notice and tick consent.
 3. Complete any safe, optional assessment: voice, resting motion, gait, clock drawing or reaction time.
 4. Open Report to inspect the measurements and download PDF/JSON.
-5. In **My profile**, enable local session history if desired; then choose **Save session to my dashboard** to store the derived summary in the local SQLite database.
+5. In **My profile**, enable local session history if desired; then choose **Save session to my dashboard** to store the derived summary in the configured persistent database (Supabase PostgreSQL when `DATABASE_URL` is configured, otherwise local SQLite).
 
 ### Sensor CSV
 
@@ -67,7 +71,7 @@ Preferred columns: `timestamp,ax,ay,az`, timestamps in seconds and strictly incr
 ## Data and privacy notes
 
 - Raw audio and raw sensor arrays are processed in app memory and are not intentionally written to the SQLite database.
-- Account name, email, role, caregiver email, password hash/salt and explicitly saved **derived session summaries** are stored locally in `neuronexus_demo.sqlite3` when local session history is enabled.
+- Account name, email, role, caregiver email, password hash/salt and explicitly saved **derived session summaries** use persistent Supabase PostgreSQL storage when `DATABASE_URL` is configured (as in the live deployment), falling back to local SQLite in offline mode. In-progress assessment drafts remain in local SQLite.
 - Optional participant context and consented caregiver observations remain in the active app session and are included in a saved summary only by explicit action. **Purge My Session Data** deletes this account's saved summaries and current in-memory assessment state, but cannot erase downloaded files or system logs.
 - Streamlit runtime memory, browser state, hosting provider, logs, telemetry, backups and downloads require separate review. This is not a guarantee of zero retention or complete erasure.
 - Do not enter real patient identifiers or upload data without authorization. Consent in this prototype does not replace ethics review, informed consent procedures or a data governance plan.
@@ -102,3 +106,17 @@ The script validates the 174-row, 450-feature `ID`/`class` schema, maps `H`/`P` 
 ## Test status
 
 The original analysis tests are included. In this build environment, `python -m pytest -q` passed all 7 tests. Streamlit UI dependencies must be installed locally from `requirements.txt` before launching the interface.
+
+## Frequently Asked Questions (FAQ)
+
+### What is NeuroNexus 2.0?
+
+NeuroNexus 2.0 (NeuroNexus18) is an interactive Streamlit research application for exploring multimodal digital biomarkers using voice, motion, gait, clock-drawing, and reaction-time activities.
+
+### What digital biomarkers does NeuroNexus measure?
+
+It explores voice acoustic features, resting tremor motion frequencies using FFT, gait cadence, clock-drawing task measurements, and reaction time. These measurements are exploratory and are not clinically validated diagnostic results.
+
+### Is NeuroNexus a medical diagnostic tool?
+
+No. NeuroNexus does not diagnose, rule out, or estimate the probability of Alzheimer's disease or Parkinson's disease. Its results are exploratory measurements only; health concerns should be assessed by a qualified clinician.
