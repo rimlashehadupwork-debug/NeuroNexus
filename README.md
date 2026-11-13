@@ -1,4 +1,4 @@
-> **🚀 Live application:** [Open NeuroNexus 2.0](https://streamlit.app)
+> **🚀 Live application:** [Open NeuroNexus 2.0](https://neuronexus18.streamlit.app/)
 
 # NeuroNexus 2.0 — Multimodal Research Prototype
 
