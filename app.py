@@ -4,6 +4,7 @@ from pathlib import Path
 import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
+import streamlit.components.v1 as components
 from streamlit_drawable_canvas import st_canvas
 from modules.config import (
     APP_NAME,
@@ -56,6 +57,18 @@ from modules.parkinson_model import train_parkinson_model
 from modules.praat_features import run_symptom_pattern_analysis
 
 st.set_page_config(page_title='NeuroNexus | Digital Biomarker Research', page_icon='🧠', layout='wide', initial_sidebar_state='expanded')
+components.html(
+    """
+    <!-- Google Tag Manager -->
+    <script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+    new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+    j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+    'https://www.googletagmanager.com/gtm.js?id='+i+dl;
+    })(window,document,'script','dataLayer','GTM-PFBLC9ZQ');</script>
+    <!-- End Google Tag Manager -->
+    """,
+    height=0,
+)
 init_db(); initialize_session(st.session_state)
 for k,v in {'user':None,'reaction_times':[],'reaction_started':None,'reaction_ready':False,'clock_result':None}.items():
     if k not in st.session_state: st.session_state[k]=v
