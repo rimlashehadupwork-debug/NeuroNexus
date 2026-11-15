@@ -49,7 +49,8 @@ def get_registry() -> dict:
     return {"parkinsons": get_parkinson_status(), "alzheimers": get_alzheimers_status()}
 
 
-def load_parkinson_model():
+def load_parkinson_model(models_dir: str | Path | None = None):
     """Load artifact for inference on compatible 26-feature vectors only."""
-    bundle = joblib.load(MODELS_DIR / "parkinson_voice_research.joblib")
+    model_path = Path(models_dir) if models_dir is not None else MODELS_DIR
+    bundle = joblib.load(model_path / "parkinson_voice_research.joblib")
     return bundle["pipeline"], bundle["feature_columns"], bundle.get("threshold", 0.5)

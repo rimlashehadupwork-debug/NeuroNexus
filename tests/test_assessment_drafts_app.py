@@ -56,3 +56,32 @@ def test_start_from_beginning_removes_local_draft(tmp_path, monkeypatch):
 
     assert not app.exception
     assert accounts.load_draft(user["id"]) is None
+
+
+def test_sample_clock_drawing_populates_capture_card(tmp_path, monkeypatch):
+    app, _, _ = _app_with_draft(tmp_path, monkeypatch)
+    app.session_state["draft_resumed"] = True
+
+    app.run()
+    assert not app.exception
+
+    next(
+        button for button in app.button
+        if button.label == "Load Sample Clock Drawing"
+    ).click()
+    app.run()
+    assert not app.exception
+
+    next(button for button in app.button if button.label == "Analyze drawing").click()
+    app.run()
+
+    assert not app.exception
+    result = app.session_state["clock_result"]
+    assert result["features"]["stroke_count"] > 0
+    assert result["features"]["approx_path_length_px"] > 0
+    assert result["features"]["bounding_box_area_fraction"] > 0
+    assert result["features"]["drawing_duration_seconds"] is None
+    assert any(
+        item.value == "Geometric & Kinematic Capture Card"
+        for item in app.subheader
+    )

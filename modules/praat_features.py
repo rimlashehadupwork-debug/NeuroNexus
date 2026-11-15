@@ -64,15 +64,30 @@ def _praat_features(wav: np.ndarray, sr: int) -> dict:
     pitch = call(snd, "To Pitch", 0.0, 75.0, 600.0)
     point = call(snd, "To PointProcess (periodic, cc)", 75.0, 600.0)
     d = snd.duration
-    f0 = pitch.selected_array["frequency"]
+    pitch_values = pitch.selected_array
+    f0 = pitch_values["frequency"]
     f0v = f0[f0 > 0]
     if f0v.size < sr * MIN_VOICED_SECONDS / 100.0:  # too few voiced frames
         raise ValueError("Too little voiced audio. Sustain a steady vowel such as 'ah' for at least 5 seconds.")
-    ac = call([snd, point], "Get maximum autocorrelation", 0.0, d, 75.0, 600.0, 1.3)
+    ac = float(np.mean(pitch_values["strength"][f0 > 0]))
     hnr = call(snd, "To Harmonicity (cc)", 0.01, 75.0, 0.1, 1.0)
     hnr_db = call(hnr, "Get mean", 0.0, d)
     rap = call(point, "Get jitter (rap)", 0.0, d, 0.0001, 0.02, 1.3)
     apq3 = call([snd, point], "Get shimmer (apq3)", 0.0, d, 0.0001, 0.02, 1.3, 1.6)
+    num_periods = int(call(point, "Get number of periods", 0.0, d, 0.0001, 0.02, 1.3))
+    pulse_times = np.asarray([
+        call(point, "Get time from index", index)
+        for index in range(1, num_periods + 2)
+    ])
+    period_durations = np.diff(pulse_times)
+    unvoiced = f0 <= 0
+    unvoiced_edges = np.diff(np.concatenate(([False], unvoiced, [False])).astype(int))
+    unvoiced_starts = np.flatnonzero(unvoiced_edges == 1)
+    unvoiced_ends = np.flatnonzero(unvoiced_edges == -1)
+    interior_breaks = (unvoiced_starts > 0) & (unvoiced_ends < len(unvoiced))
+    break_frames = int(np.sum(
+        unvoiced_ends[interior_breaks] - unvoiced_starts[interior_breaks]
+    ))
     return {
         "jitter_local": call(point, "Get jitter (local)", 0.0, d, 0.0001, 0.02, 1.3),
         "jitter_local_abs": call(point, "Get jitter (local, absolute)", 0.0, d, 0.0001, 0.02, 1.3),
@@ -93,13 +108,13 @@ def _praat_features(wav: np.ndarray, sr: int) -> dict:
         "std_pitch": float(np.std(f0v)),
         "min_pitch": float(np.min(f0v)),
         "max_pitch": float(np.max(f0v)),
-        "num_pulses": call(point, "Get number of points", 0.0, d),
-        "num_periods": call(point, "Get number of periods", 0.0, d, 0.0001, 0.02, 1.3),
+        "num_pulses": num_periods + 1,
+        "num_periods": num_periods,
         "mean_period": call(point, "Get mean period", 0.0, d, 0.0001, 0.02, 1.3),
-        "std_period": call(point, "Get stdev of periods", 0.0, d, 0.0001, 0.02, 1.3),
+        "std_period": float(np.std(period_durations)) if period_durations.size else 0.0,
         "frac_unvoiced": float(np.mean(f0 <= 0)),
-        "num_voice_breaks": call(point, "Count voice breaks", 0.0, d),
-        "degree_voice_breaks": call(point, "Get degree of voice breaks", 0.0, d, 0.0001, 0.02, 1.3),
+        "num_voice_breaks": int(np.count_nonzero(interior_breaks)),
+        "degree_voice_breaks": float(break_frames / len(unvoiced)),
     }
 
 

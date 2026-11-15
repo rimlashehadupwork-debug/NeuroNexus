@@ -1,8 +1,11 @@
 from datetime import datetime, timezone
 import base64, json, random, re, time
+from io import BytesIO
 from pathlib import Path
+import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
+import soundfile as sf
 import streamlit as st
 import streamlit.components.v1 as components
 from streamlit_drawable_canvas import st_canvas
@@ -90,6 +93,178 @@ def navigate_workspace(page, directory_role=None):
 
 def mark_assessment_changed():
     st.session_state.draft_finalized=False
+
+
+def clear_pattern_demo():
+    st.session_state["pattern_demo_active"] = False
+
+
+def clear_clock_canvas():
+    st.session_state["clock_canvas_generation"] = (
+        st.session_state.get("clock_canvas_generation", 0) + 1
+    )
+    st.session_state["clock_sample_drawing"] = None
+    st.session_state.clock_result = None
+    mark_assessment_changed()
+
+
+def _clock_path_object(strokes):
+    points = [point for stroke in strokes for point in stroke]
+    left = min(point[0] for point in points)
+    top = min(point[1] for point in points)
+    right = max(point[0] for point in points)
+    bottom = max(point[1] for point in points)
+    path = []
+    for stroke in strokes:
+        if len(stroke) < 2:
+            continue
+        path.append(["M", stroke[0][0] - left, stroke[0][1] - top])
+        path.extend(["L", point[0] - left, point[1] - top] for point in stroke[1:])
+    return {
+        "type": "path",
+        "originX": "left",
+        "originY": "top",
+        "left": left,
+        "top": top,
+        "width": max(1, right - left),
+        "height": max(1, bottom - top),
+        "fill": None,
+        "stroke": "#0d192b",
+        "strokeWidth": 3,
+        "strokeLineCap": "round",
+        "strokeLineJoin": "round",
+        "strokeMiterLimit": 10,
+        "scaleX": 1,
+        "scaleY": 1,
+        "angle": 0,
+        "flipX": False,
+        "flipY": False,
+        "opacity": 1,
+        "visible": True,
+        "path": path,
+    }
+
+
+def build_sample_clock_drawing():
+    center_x, center_y, radius = 260, 170, 112
+    outer_circle = [
+        (
+            center_x + radius * np.cos(angle),
+            center_y + radius * np.sin(angle),
+        )
+        for angle in np.linspace(-np.pi / 2, 3 * np.pi / 2, 49)
+    ]
+    stroke_groups = [[outer_circle]]
+    for hour in range(12):
+        angle = -np.pi / 2 + hour * 2 * np.pi / 12
+        inner_radius = 94 if hour % 3 == 0 else 99
+        stroke_groups.append([[
+            (
+                center_x + inner_radius * np.cos(angle),
+                center_y + inner_radius * np.sin(angle),
+            ),
+            (
+                center_x + 105 * np.cos(angle),
+                center_y + 105 * np.sin(angle),
+            ),
+        ]])
+
+    segments = {
+        "0": "abcdef",
+        "1": "bc",
+        "2": "abged",
+        "3": "abgcd",
+        "4": "fgbc",
+        "5": "afgcd",
+        "6": "afgecd",
+        "7": "abc",
+        "8": "abcdefg",
+        "9": "abfgcd",
+    }
+    segment_lines = {
+        "a": ((0, 0), (10, 0)),
+        "b": ((10, 0), (10, 9)),
+        "c": ((10, 9), (10, 18)),
+        "d": ((0, 18), (10, 18)),
+        "e": ((0, 9), (0, 18)),
+        "f": ((0, 0), (0, 9)),
+        "g": ((0, 9), (10, 9)),
+    }
+    for hour in range(12):
+        angle = -np.pi / 2 + hour * 2 * np.pi / 12
+        label = str(hour or 12)
+        label_width = len(label) * 10 + (len(label) - 1) * 3
+        label_left = center_x + 79 * np.cos(angle) - label_width / 2
+        label_top = center_y + 79 * np.sin(angle) - 9
+        label_strokes = []
+        for digit_index, digit in enumerate(label):
+            offset_x = label_left + digit_index * 13
+            for segment in segments[digit]:
+                start, end = segment_lines[segment]
+                label_strokes.append([
+                    (offset_x + start[0], label_top + start[1]),
+                    (offset_x + end[0], label_top + end[1]),
+                ])
+        stroke_groups.append(label_strokes)
+
+    def clock_point(hour, hand_length):
+        angle = -np.pi / 2 + hour * 2 * np.pi / 12
+        return (
+            center_x + hand_length * np.cos(angle),
+            center_y + hand_length * np.sin(angle),
+        )
+
+    stroke_groups.extend([
+        [[(center_x, center_y), clock_point(11, 48)]],
+        [[(center_x, center_y), clock_point(2, 73)]],
+        [[
+            (center_x - 4, center_y),
+            (center_x + 4, center_y),
+            (center_x, center_y - 4),
+            (center_x - 4, center_y),
+        ]],
+    ])
+    return {"objects": [_clock_path_object(group) for group in stroke_groups]}
+
+
+def load_sample_clock_drawing():
+    st.session_state["clock_canvas_generation"] = (
+        st.session_state.get("clock_canvas_generation", 0) + 1
+    )
+    st.session_state["clock_sample_drawing"] = build_sample_clock_drawing()
+    st.session_state.clock_result = None
+    mark_assessment_changed()
+
+
+def generate_sample_vowel_wav():
+    sample_rate = 16000
+    time_axis = np.arange(sample_rate * 6, dtype=np.float64) / sample_rate
+    fundamental = (
+        178
+        + 2.2 * np.sin(2 * np.pi * 4.3 * time_axis)
+        + 0.6 * np.sin(2 * np.pi * 0.7 * time_axis)
+    )
+    phase = 2 * np.pi * np.cumsum(fundamental) / sample_rate
+    formants = (
+        (820 + 22 * np.sin(2 * np.pi * 0.35 * time_axis), 110),
+        (1320 + 35 * np.sin(2 * np.pi * 0.22 * time_axis), 150),
+        (2700 + 45 * np.sin(2 * np.pi * 0.17 * time_axis), 220),
+    )
+    sample = np.zeros_like(time_axis)
+    for harmonic in range(1, 45):
+        harmonic_frequency = harmonic * fundamental
+        envelope = sum(
+            np.exp(-0.5 * ((harmonic_frequency - center) / bandwidth) ** 2)
+            for center, bandwidth in formants
+        )
+        amplitude = (0.025 + envelope) / harmonic**1.15
+        sample += amplitude * np.sin(harmonic * phase)
+    sample *= 0.92 + 0.08 * np.sin(2 * np.pi * 3.1 * time_axis)
+    sample = (0.75 * sample / np.max(np.abs(sample))).astype(np.float32)
+
+    wav_buffer = BytesIO()
+    sf.write(wav_buffer, sample, sample_rate, format='WAV', subtype='PCM_16')
+    return wav_buffer.getvalue()
 
 
 st.markdown('''<style>
@@ -948,19 +1123,66 @@ elif page=='Screening assessments':
         st.subheader('Experimental symptom-pattern analysis')
         st.write("Sustain a steady vowel such as 'ahhh' for at least 5 seconds, then run the research pattern comparison.")
 
-        if chosen is None:
-            st.caption('Record or upload a voice sample above to enable pattern analysis.')
-        if st.button('Run experimental pattern analysis', disabled=chosen is None):
+        pattern_rec = st.audio_input(
+            'Record a sustained vowel for pattern analysis',
+            key=f"pattern_rec{st.session_state.upload_generation}",
+            on_change=clear_pattern_demo,
+        )
+        pattern_upload = st.file_uploader(
+            'Or upload a WAV for pattern analysis',
+            type=['wav'],
+            key=f"pattern_wav{st.session_state.upload_generation}",
+            on_change=clear_pattern_demo,
+        )
+        pattern_source = pattern_rec or pattern_upload or chosen
+        pattern_demo_bytes = st.session_state.get('pattern_demo_audio_bytes')
+        pattern_demo_active = st.session_state.get('pattern_demo_active', False)
+        if pattern_demo_active:
+            pattern_audio = pattern_demo_bytes
+        elif pattern_source is not None:
+            pattern_audio = pattern_source.getvalue()
+        else:
+            pattern_audio = None
+
+        run_col, sample_col = st.columns(2)
+        with run_col:
+            run_pattern = st.button(
+                'Run experimental pattern analysis',
+                disabled=pattern_audio is None,
+            )
+        with sample_col:
+            load_sample = st.button('Load Sample 6-Second Vowel Audio')
+
+        if load_sample:
+            st.session_state['pattern_demo_audio_bytes'] = generate_sample_vowel_wav()
+            st.session_state['pattern_demo_active'] = True
+            pattern_audio = st.session_state['pattern_demo_audio_bytes']
+            pattern_demo_active = True
+            run_pattern = True
+
+        if pattern_audio is None:
+            st.info('No audio recorded yet. Record a steady vowel for at least 5 seconds or upload a WAV file to run the experimental analysis.')
+        elif pattern_demo_active:
+            st.audio(pattern_audio, format='audio/wav', alt='Six-second synthetic harmonic vowel sample')
+
+        if run_pattern:
             try:
                 from modules.praat_features import run_symptom_pattern_analysis
                 from modules.audio_analysis import to_standard_wav
-                src = st.session_state.get('voice_wav_bytes') or to_standard_wav(chosen.getvalue())[0]
+                src = pattern_audio if pattern_demo_active else to_standard_wav(pattern_audio)[0]
                 st.session_state.pattern_result = run_symptom_pattern_analysis(src)
                 mark_assessment_changed()
+            except ValueError as e:
+                st.session_state.pattern_result = None
+                mark_assessment_changed()
+                if 'Too little voiced audio' in str(e):
+                    st.info(f'Pattern analysis not run: {e}')
+                else:
+                    st.error(f'Pattern analysis could not process this audio: {e}')
             except Exception as e:
                 st.session_state.pattern_result = None
                 mark_assessment_changed()
-                st.error(f'Pattern analysis not run: {e}')
+                st.warning(f'Experimental pattern analysis is unavailable: {e}')
 
         pr = st.session_state.get('pattern_result')
         if pr:
@@ -971,7 +1193,7 @@ elif page=='Screening assessments':
                        f"(95% CI {pr['model_context']['ci95'][0]:.2f}–{pr['model_context']['ci95'][1]:.2f}) · internal CV only")
             with st.expander('Measurements extracted'):
                 st.json({k: round(v, 5) if isinstance(v, float) else v for k, v in pr['compatible_features'].items()})
-            st.error(pr['required_disclaimer'])
+            st.info(pr['required_disclaimer'])
     with motion_tab:
         st.subheader('Resting motion'); st.write('Record a short resting sensor sample using the companion phone logger, then upload its CSV.')
         mf=st.file_uploader('Upload motion CSV',type=['csv'],key=f"motion{st.session_state.upload_generation}")
@@ -1008,43 +1230,53 @@ elif page=='Screening assessments':
             a,b,c=st.columns(3); a.metric('Signal quality',f"{r['quality']['score']}/100"); b.metric('Candidate step events',r['candidate_step_events']); c.metric('Estimated cadence',f"{r['cadence_steps_per_min']:.1f}/min" if r['cadence_steps_per_min'] is not None else 'Unavailable'); st.caption(r['method_note'])
     with clock_tab:
         st.subheader('Clock-drawing activity')
-        st.write('Draw a clock face, add the numbers, and set the hands to **10 past 11**. This task records coarse drawing geometry only; it does not calculate Alzheimer’s risk or provide a diagnosis.')
-        st.caption('Mouse/touch canvas data has no calibrated pressure or reliable pointer timestamps. DARWIN tablet kinematics cannot be inferred from this drawing.')
-        darwin_status=get_alzheimers_status()
-        if darwin_status.get('available'):
-            st.metric('Experimental Kinematic Similarity Indicator','Not calculated')
-            st.caption('The DARWIN model is available for dataset-level research evaluation only. Its 450 tablet features do not match this single-task browser canvas, so no user-level similarity or prediction is produced.')
-        else:
-            st.metric('Experimental Kinematic Similarity Indicator','Unavailable')
-            st.caption(darwin_status.get('message','DARWIN research model is not installed.'))
-        if st.button(
-            'Load Sample DARWIN Test Profile',
-            type='secondary',
-            disabled=not darwin_status.get('available'),
-            key='load_darwin_sample_profile',
-        ):
-            try:
-                st.session_state.darwin_sample_profile=load_darwin_sample_profile()
-                st.rerun()
-            except (RuntimeError, KeyError) as exc:
-                st.error(f'Could not load the DARWIN cohort example: {exc}')
-        sample_profile=st.session_state.get('darwin_sample_profile')
-        if sample_profile:
-            st.info(sample_profile['notice'])
-            st.dataframe(
-                pd.DataFrame([
-                    {'Feature':humanize_feature_code(name),'Cohort median':value}
-                    for name,value in sample_profile['features'].items()
-                ]),
-                hide_index=True,
-                alt='Dataset-wide median values for selected DARWIN research features',
-            )
-        canvas=st_canvas(fill_color='rgba(13,148,136,0.12)',stroke_width=3,stroke_color='#0d192b',background_color='#ffffff',height=340,width=520,drawing_mode='freedraw',key=f"clock_canvas_{st.session_state.upload_generation}")
+        st.write('Draw a clock face, add the numbers, and set the hands to 10 past 11.')
+        sample_drawing=st.session_state.get('clock_sample_drawing')
+        canvas=st_canvas(
+            fill_color='rgba(13,148,136,0.12)',
+            stroke_width=3,
+            stroke_color='#0d192b',
+            background_color='#ffffff',
+            height=340,
+            width=520,
+            drawing_mode='freedraw',
+            initial_drawing=sample_drawing,
+            key=(
+                f"clock_canvas_{st.session_state.upload_generation}_"
+                f"{st.session_state.get('clock_canvas_generation', 0)}"
+            ),
+        )
         drawing_json=getattr(canvas,'json_data',None)
+        if not isinstance(drawing_json,dict) and sample_drawing:
+            drawing_json=sample_drawing
         has_strokes=isinstance(drawing_json,dict) and bool(drawing_json.get('objects'))
-        if st.button('Analyze drawing',disabled=not has_strokes,key='analyze_clock_drawing'):
+        clear_col,sample_col,analyze_col=st.columns(3)
+        clear_col.button(
+            'Clear Canvas',
+            on_click=clear_clock_canvas,
+            width='stretch',
+        )
+        sample_col.button(
+            'Load Sample Clock Drawing',
+            on_click=load_sample_clock_drawing,
+            width='stretch',
+        )
+        st.caption(
+            'This task records coarse drawing geometry only; it does not calculate '
+            'Alzheimer’s risk or provide a diagnosis. The browser canvas has no '
+            'calibrated pressure or reliable pointer timestamps.'
+        )
+        analyze_drawing=analyze_col.button(
+            'Analyze drawing',
+            disabled=not has_strokes,
+            key='analyze_clock_drawing',
+            type='primary',
+            width='stretch',
+        )
+        if analyze_drawing:
             try:
                 drawing_features=extract_clock_drawing_features(drawing_json)
+                darwin_status=get_alzheimers_status()
                 selected_darwin_features=(
                     (darwin_status.get('metadata') or {})
                     .get('feature_selection',{})
@@ -1070,40 +1302,63 @@ elif page=='Screening assessments':
         if st.session_state.clock_result:
             clock_features=st.session_state.clock_result.get('features')
             if clock_features:
-                st.subheader('Measured drawing descriptors')
-                metric_cols=st.columns(4)
-                metric_cols[0].metric('Strokes',clock_features['stroke_count'])
-                metric_cols[1].metric('Approx. path length',f"{clock_features['approx_path_length_px']:.1f} px")
-                metric_cols[2].metric('Canvas area used',f"{clock_features['bounding_box_area_fraction']:.1%}")
-                turn=clock_features['mean_direction_change_degrees']
-                metric_cols[3].metric('Mean direction change',f'{turn:.1f}°' if turn is not None else 'Unavailable')
-                st.subheader('Measured feature breakdown')
-                spatial_footprint=pd.DataFrame(
-                    {'Canvas fraction used':[clock_features['bounding_box_area_fraction']]},
-                    index=['Bounding-box spatial footprint'],
-                )
-                st.bar_chart(
-                    spatial_footprint,
-                    horizontal=True,
-                    alt='Bounding-box spatial footprint as the fraction of canvas used',
-                )
-                timing_features=pd.DataFrame([
-                    {'Feature':'Drawing duration','Value':clock_features['drawing_duration_seconds']},
-                    {'Feature':'Air / pause time','Value':clock_features['pause_or_air_time_seconds']},
-                    {'Feature':'Average stroke speed','Value':clock_features['average_stroke_speed_px_per_second']},
-                    {'Feature':'Pressure','Value':clock_features['pressure']},
-                    {'Feature':'Jerk','Value':clock_features['jerk']},
-                ])
-                timing_features['Value']=timing_features['Value'].map(
-                    lambda value:'Unavailable from this canvas' if value is None else value
-                )
-                st.dataframe(timing_features,hide_index=True,alt='Clock-drawing timing and pressure features unavailable from the canvas export')
+                with st.container(border=True):
+                    st.subheader('Geometric & Kinematic Capture Card')
+                    metric_cols=st.columns(4)
+                    metric_cols[0].metric('Stroke count',clock_features['stroke_count'])
+                    metric_cols[1].metric(
+                        'Total path length',
+                        f"{clock_features['approx_path_length_px']:.1f} px",
+                    )
+                    metric_cols[2].metric(
+                        'Canvas area used',
+                        f"{clock_features['bounding_box_area_fraction']:.1%}",
+                    )
+                    duration=clock_features['drawing_duration_seconds']
+                    metric_cols[3].metric(
+                        'Drawing duration',
+                        f'{duration:.1f} s' if duration is not None else 'Unavailable',
+                    )
                 compatibility=st.session_state.clock_result.get('darwin_model_compatibility') or {}
-                st.metric('Experimental Kinematic Similarity Indicator','Not calculated')
                 st.caption(compatibility.get('message','No compatible DARWIN feature schema is available.'))
-                st.info(clock_features['timing_limitation'])
+                st.caption(clock_features['timing_limitation'])
             else:
                 st.json(st.session_state.clock_result)
+        darwin_status=get_alzheimers_status()
+        if darwin_status.get('available'):
+            st.caption(
+                'DARWIN dataset note: the model is available for dataset-level research '
+                'evaluation only. Its 450 tablet features do not match this single-task '
+                'browser canvas, so no user-level similarity or prediction is produced.'
+            )
+        else:
+            st.caption(
+                'DARWIN dataset note: '
+                + darwin_status.get('message','DARWIN research model is not installed.')
+            )
+        with st.expander('DARWIN dataset-level research example'):
+            if st.button(
+                'Load Sample DARWIN Test Profile',
+                type='secondary',
+                disabled=not darwin_status.get('available'),
+                key='load_darwin_sample_profile',
+            ):
+                try:
+                    st.session_state.darwin_sample_profile=load_darwin_sample_profile()
+                    st.rerun()
+                except (RuntimeError, KeyError) as exc:
+                    st.error(f'Could not load the DARWIN cohort example: {exc}')
+            sample_profile=st.session_state.get('darwin_sample_profile')
+            if sample_profile:
+                st.info(sample_profile['notice'])
+                st.dataframe(
+                    pd.DataFrame([
+                        {'Feature':humanize_feature_code(name),'Cohort median':value}
+                        for name,value in sample_profile['features'].items()
+                    ]),
+                    hide_index=True,
+                    alt='Dataset-wide median values for selected DARWIN research features',
+                )
     with reaction_tab:
         st.subheader('Visual reaction-time activity'); st.write('Press Start, wait for the green signal, then tap as quickly as you comfortably can. Complete five trials.')
         if st.button('Start / reset reaction trial',type='primary'):
