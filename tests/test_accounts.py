@@ -41,6 +41,46 @@ def test_database_url_environment_selects_postgresql_without_connecting(monkeypa
     assert accounts.storage_backend() == "postgresql"
 
 
+def test_init_db_seeds_all_demo_accounts_idempotently(tmp_path, monkeypatch):
+    monkeypatch.setattr(accounts, "DB_PATH", tmp_path / "accounts.sqlite3")
+    monkeypatch.delenv("DATABASE_URL", raising=False)
+
+    accounts.init_db()
+    accounts.init_db()
+
+    for email, expected_role in (
+        ("individual@neuronexus.local", "individual"),
+        ("caregiver@neuronexus.local", "caregiver"),
+        ("admin@neuronexus.local", "admin"),
+    ):
+        user = accounts.authenticate(f"  {email}  ", "ChangeMe123!")
+        assert user["role"] == expected_role
+
+    with accounts.connect() as connection:
+        rows = connection.execute(
+            "SELECT email FROM users WHERE email LIKE '%@neuronexus.local'"
+        ).fetchall()
+    assert len(rows) == 3
+
+
+def test_quick_demo_account_recreates_missing_account(tmp_path, monkeypatch):
+    monkeypatch.setattr(accounts, "DB_PATH", tmp_path / "accounts.sqlite3")
+    monkeypatch.delenv("DATABASE_URL", raising=False)
+    accounts.init_db()
+
+    with accounts.connect() as connection:
+        connection.execute(
+            "DELETE FROM users WHERE email=?",
+            ("caregiver@neuronexus.local",),
+        )
+
+    user = accounts.demo_account("caregiver@neuronexus.local")
+
+    assert user["email"] == "caregiver@neuronexus.local"
+    assert user["role"] == "caregiver"
+    assert accounts.authenticate(user["email"], "ChangeMe123!")["id"] == user["id"]
+
+
 def test_delete_user_sessions_removes_only_the_selected_users_rows(tmp_path, monkeypatch):
     monkeypatch.setattr(accounts, "DB_PATH", tmp_path / "accounts.sqlite3")
     accounts.init_db()

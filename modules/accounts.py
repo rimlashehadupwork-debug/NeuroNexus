@@ -13,6 +13,12 @@ import sqlite3
 
 DB_PATH = Path(__file__).resolve().parent.parent / "neuronexus_demo.sqlite3"
 ROLES = {"individual", "caregiver", "admin"}
+DEMO_ACCOUNTS = {
+    "individual@neuronexus.local": ("NeuroNexus Individual", "individual"),
+    "caregiver@neuronexus.local": ("NeuroNexus Caregiver", "caregiver"),
+    "admin@neuronexus.local": ("NeuroNexus Admin", "admin"),
+}
+DEMO_PASSWORD = "ChangeMe123!"
 
 
 def _configured_value(name):
@@ -111,6 +117,39 @@ def _json_default(value):
     raise TypeError(f"Value of type {type(value).__name__} is not JSON serializable.")
 
 
+def _ensure_demo_accounts(connection):
+    for email, (name, role) in DEMO_ACCOUNTS.items():
+        if _execute(
+            connection, "SELECT id FROM users WHERE email=?", (email,)
+        ).fetchone():
+            continue
+        salt = secrets.token_hex(16)
+        digest = hashlib.pbkdf2_hmac(
+            "sha256", DEMO_PASSWORD.encode(), salt.encode(), 180000
+        ).hex()
+        _execute(
+            connection,
+            """INSERT INTO users(name,email,salt,password_hash,role)
+               VALUES(?,?,?,?,?) ON CONFLICT(email) DO NOTHING""",
+            (name, email, salt, digest, role),
+        )
+
+
+def demo_account(email):
+    """Ensure and return one of the public demo accounts for quick login."""
+    email = email.strip().lower()
+    if email not in DEMO_ACCOUNTS:
+        raise ValueError("Only configured demo accounts can use quick login.")
+    with connect() as connection:
+        _ensure_demo_accounts(connection)
+        row = _execute(
+            connection, "SELECT * FROM users WHERE email=?", (email,)
+        ).fetchone()
+    if not row:
+        raise RuntimeError(f"Unable to initialize the demo account for {email}.")
+    return _normalize_record(row)
+
+
 def init_db():
     """Initialize persistent account/report tables and the local draft table."""
     with _sqlite_connection(DB_PATH) as connection:
@@ -183,27 +222,7 @@ def init_db():
                     FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
                 )"""
             )
-            if not _execute(
-                connection,
-                "SELECT id FROM users WHERE email=?",
-                ("admin@neuronexus.local",),
-            ).fetchone():
-                salt = secrets.token_hex(16)
-                digest = hashlib.pbkdf2_hmac(
-                    "sha256", b"ChangeMe123!", salt.encode(), 180000
-                ).hex()
-                _execute(
-                    connection,
-                    """INSERT INTO users(name,email,salt,password_hash,role)
-                       VALUES(?,?,?,?,?)""",
-                    (
-                        "NeuroNexus Admin",
-                        "admin@neuronexus.local",
-                        salt,
-                        digest,
-                        "admin",
-                    ),
-                )
+        _ensure_demo_accounts(connection)
 
     admin_email = _configured_value("NEURONEXUS_ADMIN_EMAIL")
     admin_password = _configured_value("NEURONEXUS_ADMIN_PASSWORD")

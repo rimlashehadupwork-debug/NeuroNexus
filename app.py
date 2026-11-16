@@ -37,6 +37,7 @@ from modules.reporting import (
 from modules.accounts import (
     authenticate,
     caregiver_sessions,
+    demo_account,
     delete_draft,
     delete_user_sessions,
     init_db,
@@ -389,9 +390,22 @@ if not st.session_state.user:
                 email=st.text_input('Email address'); password=st.text_input('Password',type='password')
                 submitted=st.form_submit_button('Sign in',type='primary',use_container_width=True)
             if submitted:
-                user=authenticate(email,password)
+                user=authenticate(email.strip(),password)
                 if user: st.session_state.user=user; st.rerun()
                 else: st.error('Email or password is incorrect.')
+            quick_login_cols=st.columns(3)
+            for col,(label,demo_email) in zip(
+                quick_login_cols,
+                (
+                    ('Quick Demo: Individual','individual@neuronexus.local'),
+                    ('Quick Demo: Caregiver','caregiver@neuronexus.local'),
+                    ('Quick Demo: Admin','admin@neuronexus.local'),
+                ),
+            ):
+                with col:
+                    if st.button(label,key=f"quick_demo_{demo_email}"):
+                        st.session_state.user=demo_account(demo_email)
+                        st.rerun()
         with reg_tab:
             with st.form('register_form'):
                 name=st.text_input('Full name'); email2=st.text_input('Email address'); pw=st.text_input('Create password',type='password'); pw2=st.text_input('Confirm password',type='password')
