@@ -9,6 +9,9 @@ import os
 from pathlib import Path
 import secrets
 import sqlite3
+from urllib.parse import parse_qs, urlsplit
+
+from .demo_mode import build_synthetic_history
 
 
 DB_PATH = Path(__file__).resolve().parent.parent / "neuronexus_demo.sqlite3"
@@ -16,9 +19,9 @@ ROLES = {"individual", "caregiver", "admin"}
 DEMO_ACCOUNTS = {
     "individual@neuronexus.local": ("NeuroNexus Individual", "individual"),
     "caregiver@neuronexus.local": ("NeuroNexus Caregiver", "caregiver"),
-    "admin@neuronexus.local": ("NeuroNexus Admin", "admin"),
 }
 DEMO_PASSWORD = "ChangeMe123!"
+LEGACY_DEMO_ADMIN_EMAIL = "admin@neuronexus.local"
 
 
 def _configured_value(name):
@@ -51,6 +54,24 @@ def get_database_url():
 
 def storage_backend():
     return "postgresql" if get_database_url() else "sqlite"
+
+
+def _postgres_sslmode(database_url):
+    sslmodes = [
+        mode.casefold()
+        for mode in parse_qs(urlsplit(database_url).query).get("sslmode", [])
+    ]
+    if not sslmodes:
+        return "require"
+    if len(sslmodes) != 1 or sslmodes[0] not in {
+        "require",
+        "verify-ca",
+        "verify-full",
+    }:
+        raise ValueError(
+            "PostgreSQL connections require sslmode=require or stronger."
+        )
+    return sslmodes[0]
 
 
 @contextmanager
@@ -86,7 +107,12 @@ def connect():
             "Install the project requirements."
         ) from exc
 
-    with psycopg.connect(database_url, row_factory=dict_row) as connection:
+    sslmode = _postgres_sslmode(database_url)
+    with psycopg.connect(
+        database_url,
+        row_factory=dict_row,
+        sslmode=sslmode,
+    ) as connection:
         yield connection
 
 
@@ -135,6 +161,38 @@ def _ensure_demo_accounts(connection):
         )
 
 
+def _ensure_demo_history(connection):
+    """Seed labelled synthetic history for the legacy individual/caregiver demos."""
+    for email in (
+        "individual@neuronexus.local",
+        "caregiver@neuronexus.local",
+    ):
+        user = _execute(
+            connection, "SELECT id FROM users WHERE email=?", (email,)
+        ).fetchone()
+        if not user:
+            continue
+        user_id = user["id"]
+        existing_demo = _execute(
+            connection,
+            "SELECT id FROM sessions WHERE user_id=? AND summary LIKE ?",
+            (user_id, '%"demo_history": true%'),
+        ).fetchone()
+        if existing_demo:
+            continue
+
+        for sample in build_synthetic_history():
+            _execute(
+                connection,
+                "INSERT INTO sessions(user_id,created_at,summary) VALUES(?,?,?)",
+                (
+                    user_id,
+                    sample["created_at"],
+                    json.dumps(sample["summary"], allow_nan=False),
+                ),
+            )
+
+
 def demo_account(email):
     """Ensure and return one of the public demo accounts for quick login."""
     email = email.strip().lower()
@@ -142,6 +200,7 @@ def demo_account(email):
         raise ValueError("Only configured demo accounts can use quick login.")
     with connect() as connection:
         _ensure_demo_accounts(connection)
+        _ensure_demo_history(connection)
         row = _execute(
             connection, "SELECT * FROM users WHERE email=?", (email,)
         ).fetchone()
@@ -186,6 +245,13 @@ def init_db():
                 )"""
             )
             connection.execute(
+                """CREATE TABLE IF NOT EXISTS wellness_plans(
+                    user_id BIGINT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+                    payload TEXT NOT NULL,
+                    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+                )"""
+            )
+            connection.execute(
                 "ALTER TABLE users ADD COLUMN IF NOT EXISTS consent_flags TEXT NOT NULL DEFAULT '{}'"
             )
             connection.execute(
@@ -222,7 +288,16 @@ def init_db():
                     FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
                 )"""
             )
+            connection.execute(
+                """CREATE TABLE IF NOT EXISTS wellness_plans(
+                    user_id INTEGER PRIMARY KEY,
+                    payload TEXT NOT NULL,
+                    updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+                )"""
+            )
         _ensure_demo_accounts(connection)
+        _ensure_demo_history(connection)
 
     admin_email = _configured_value("NEURONEXUS_ADMIN_EMAIL")
     admin_password = _configured_value("NEURONEXUS_ADMIN_PASSWORD")
@@ -285,9 +360,15 @@ def register(name, email, password, role="individual", caregiver_email="", conse
 
 
 def authenticate(email, password):
+    normalized_email = email.strip().lower()
+    if (
+        normalized_email == LEGACY_DEMO_ADMIN_EMAIL
+        and secrets.compare_digest(password, DEMO_PASSWORD)
+    ):
+        return None
     with connect() as connection:
         row = _execute(
-            connection, "SELECT * FROM users WHERE email=?", (email.strip().lower(),)
+            connection, "SELECT * FROM users WHERE email=?", (normalized_email,)
         ).fetchone()
     if not row:
         return None
@@ -352,21 +433,35 @@ def is_duplicate_email_error(error):
     return isinstance(error, psycopg.errors.UniqueViolation)
 
 
-def save_session(user_id, summary):
+def save_session(user_id, summary, created_at=None):
     serialized = json.dumps(summary, allow_nan=False, default=_json_default)
     with connect() as connection:
         if isinstance(connection, sqlite3.Connection):
+            if created_at is None:
+                cursor = _execute(
+                    connection,
+                    "INSERT INTO sessions(user_id,summary) VALUES(?,?)",
+                    (user_id, serialized),
+                )
+            else:
+                cursor = _execute(
+                    connection,
+                    "INSERT INTO sessions(user_id,created_at,summary) VALUES(?,?,?)",
+                    (user_id, created_at, serialized),
+                )
+            return cursor.lastrowid
+        if created_at is None:
             cursor = _execute(
                 connection,
-                "INSERT INTO sessions(user_id,summary) VALUES(?,?)",
+                "INSERT INTO sessions(user_id,summary) VALUES(?,?) RETURNING id",
                 (user_id, serialized),
             )
-            return cursor.lastrowid
-        cursor = _execute(
-            connection,
-            "INSERT INTO sessions(user_id,summary) VALUES(?,?) RETURNING id",
-            (user_id, serialized),
-        )
+        else:
+            cursor = _execute(
+                connection,
+                "INSERT INTO sessions(user_id,created_at,summary) VALUES(?,?,?) RETURNING id",
+                (user_id, created_at, serialized),
+            )
         return cursor.fetchone()["id"]
 
 
@@ -378,6 +473,60 @@ def user_sessions(user_id):
             (user_id,),
         ).fetchall()
     return [_normalize_record(row) for row in rows]
+
+
+def save_wellness_plan(user_id, payload):
+    """Persist an explicitly saved wellness plan for one account."""
+    if user_id is None:
+        raise ValueError("A persisted account ID is required to save a wellness plan.")
+    if not isinstance(payload, dict):
+        raise ValueError("A wellness plan must be an object.")
+    serialized = json.dumps(
+        payload,
+        allow_nan=False,
+        default=_json_default,
+        sort_keys=True,
+    )
+    with connect() as connection:
+        _execute(
+            connection,
+            """INSERT INTO wellness_plans(user_id,payload) VALUES(?,?)
+               ON CONFLICT(user_id) DO UPDATE SET
+               payload=excluded.payload,updated_at=CURRENT_TIMESTAMP""",
+            (user_id, serialized),
+        )
+    return True
+
+
+def load_wellness_plan(user_id):
+    """Load one account's saved wellness plan, if it exists."""
+    if user_id is None:
+        raise ValueError("A persisted account ID is required to load a wellness plan.")
+    with connect() as connection:
+        row = _execute(
+            connection,
+            "SELECT payload FROM wellness_plans WHERE user_id=?",
+            (user_id,),
+        ).fetchone()
+    if not row:
+        return None
+    payload = json.loads(row["payload"])
+    if not isinstance(payload, dict):
+        raise ValueError("The saved wellness plan is not a JSON object.")
+    return payload
+
+
+def delete_wellness_plan(user_id):
+    """Delete one account's saved wellness plan."""
+    if user_id is None:
+        raise ValueError("A persisted account ID is required to delete a wellness plan.")
+    with connect() as connection:
+        cursor = _execute(
+            connection,
+            "DELETE FROM wellness_plans WHERE user_id=?",
+            (user_id,),
+        )
+    return cursor.rowcount > 0
 
 
 def delete_user_sessions(user_id):

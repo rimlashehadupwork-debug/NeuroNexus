@@ -1,23 +1,31 @@
 [theme]
 base = "light"
-primaryColor = "#3A7D6B"
-backgroundColor = "#F8FAF9"
+primaryColor = "#16858A"
+backgroundColor = "#F4F7FA"
 secondaryBackgroundColor = "#FFFFFF"
-textColor = "#1A2426"
-borderColor = "#D8E2E3"
-dataframeBorderColor = "#C6D8D2"
-dataframeHeaderBackgroundColor = "#1E565C"
+textColor = "#172B3B"
+borderColor = "#DCE5EC"
+dataframeBorderColor = "#D2DEE7"
+dataframeHeaderBackgroundColor = "#17364A"
 dataframeHeaderTextColor = "#FFFFFF"
 font = "sans-serif"
-baseRadius = "16px"
-buttonRadius = "12px"
+baseRadius = "14px"
+buttonRadius = "10px"
 showWidgetBorder = true
 showSidebarBorder = true
-chartCategoricalColors = ["#3A7D6B", "#1E565C", "#8BB8A9", "#6F8F89", "#A9C6BD", "#376C68"]
+chartCategoricalColors = ["#16858A", "#3279A7", "#7B72B8", "#53A9B2", "#71869A", "#A58AC0"]
+
+[browser]
+gatherUsageStats = false
+
+[server]
+enableCORS = true
+enableXsrfProtection = true
+maxUploadSize = 25
 
 [theme.sidebar]
-backgroundColor = "#EFF4F2"
-secondaryBackgroundColor = "#F8FAF9"
-textColor = "#1A2426"
-primaryColor = "#3A7D6B"
-borderColor = "#D8E2E3"
+backgroundColor = "#EDF3F7"
+secondaryBackgroundColor = "#F7F9FB"
+textColor = "#172B3B"
+primaryColor = "#16858A"
+borderColor = "#DCE5EC"

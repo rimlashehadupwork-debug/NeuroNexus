@@ -1,5 +1,6 @@
 """Safe report serialization: only compact derived features, never raw samples."""
 import json
+import math
 import re
 from datetime import datetime, timezone
 
@@ -49,7 +50,7 @@ def completed_module_explanations(report):
             (
                 "Voice",
                 bool(report.get("voice") or report.get("voice_pattern_features")),
-                "Recording duration, sound level and silence, and estimated vocal pitch.",
+                "Recording duration, sound level, near-silence ratio, spectral features, and estimated vocal pitch.",
             ),
             (
                 "Resting motion",
@@ -76,6 +77,11 @@ def completed_module_explanations(report):
                 "Median response time and variation across button-tap trials; device and browser timing affect results.",
             ),
             (
+                "Memory check",
+                bool((cognitive.get("memory_check") or {}).get("completed")),
+                "Correct words recalled, recall percentage, and completion time after timed word presentation; descriptive only, not a diagnostic test.",
+            ),
+            (
                 "Speech features",
                 bool(report.get("alzheimers_speech_features")),
                 "Transcript word counts and language patterns; optional audio timing features when matching audio was provided.",
@@ -88,8 +94,11 @@ def completed_module_explanations(report):
 def build_report(audio_result=None, motion_result=None, gait_result=None, mode="Individual"):
     def compact_audio(r):
         if not r: return None
-        keys = ("duration_seconds", "sample_rate", "rms", "clipping_ratio", "silence_ratio",
-                "pitch_median_hz", "zero_crossing_rate", "spectral_centroid_hz", "rms_variability", "quality")
+        keys = ("duration_seconds", "sample_rate", "peak_amplitude", "rms",
+                "clipping_ratio", "silence_ratio",
+                "pitch_median_hz", "zero_crossing_rate", "spectral_centroid_hz",
+                "rms_variability", "source_sample_rate", "source_channels",
+                "source_duration_seconds", "conversion_method", "quality")
         return {k: r.get(k) for k in keys}
     def compact_motion(r):
         if not r: return None
@@ -126,9 +135,14 @@ def key_measurement_rows(report):
     motion = report.get("resting_motion") or {}
     gait = report.get("gait") or {}
     reaction = cognitive.get("reaction_time") or {}
+    memory = cognitive.get("memory_check") or {}
+    recalled_words = memory.get("words_recalled")
+    not_recalled_words = memory.get("words_not_recalled")
 
     def format_value(value, unit=""):
         if value is None or value == "":
+            return "Not completed"
+        if isinstance(value, float) and not math.isfinite(value):
             return "Not completed"
         if isinstance(value, float):
             value = f"{value:.4g}"
@@ -136,8 +150,16 @@ def key_measurement_rows(report):
 
     measurements = [
         ("Voice", "Recording duration", voice.get("duration_seconds"), "s"),
+        ("Voice", "Source sample rate", voice.get("source_sample_rate"), "Hz"),
+        ("Voice", "Source channels", voice.get("source_channels"), "channels"),
         ("Voice", "Median pitch", voice.get("pitch_median_hz"), "Hz"),
         ("Voice", "Silence ratio", voice.get("silence_ratio"), ""),
+        ("Voice", "RMS signal level", voice.get("rms"), ""),
+        ("Voice", "Peak amplitude", voice.get("peak_amplitude"), ""),
+        ("Voice", "Clipping ratio", voice.get("clipping_ratio"), ""),
+        ("Voice", "Zero-crossing rate", voice.get("zero_crossing_rate"), ""),
+        ("Voice", "Spectral centroid", voice.get("spectral_centroid_hz"), "Hz"),
+        ("Voice", "RMS frame variability", voice.get("rms_variability"), ""),
         ("Speech", "Transcript word count", speech.get("n_words"), "words"),
         ("Speech", "Type-token ratio", speech.get("type_token_ratio"), ""),
         ("Movement", "Dominant motion frequency", motion.get("dominant_frequency_hz"), "Hz"),
@@ -147,6 +169,26 @@ def key_measurement_rows(report):
         ("Clock drawing", "Canvas area used", clock.get("bounding_box_area_fraction"), ""),
         ("Reaction time", "Median response", reaction.get("median_ms"), "ms"),
         ("Reaction time", "Response variability", reaction.get("variability_ms"), "ms"),
+        ("Memory check", "Items recalled", memory.get("items_recalled"), "items"),
+        ("Memory check", "Items presented", memory.get("items_presented"), "words"),
+        ("Memory check", "Recall percentage", memory.get("recall_percentage"), "%"),
+        (
+            "Memory check",
+            "Words recalled",
+            ", ".join(recalled_words) if isinstance(recalled_words, list) else None,
+            "",
+        ),
+        (
+            "Memory check",
+            "Words not recalled",
+            ", ".join(not_recalled_words)
+            if isinstance(not_recalled_words, list)
+            else None,
+            "",
+        ),
+        ("Memory check", "Recall latency", memory.get("recall_latency_seconds"), "s"),
+        ("Memory check", "Completion time", memory.get("completion_time_seconds"), "s"),
+        ("Memory check", "Completion status", memory.get("completion_status"), ""),
     ]
     if voice_pattern.get("std_pitch") is not None:
         measurements.append(

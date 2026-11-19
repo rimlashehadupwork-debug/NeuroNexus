@@ -1,3 +1,7 @@
+import json
+
+import pytest
+
 from modules import accounts
 
 
@@ -41,7 +45,28 @@ def test_database_url_environment_selects_postgresql_without_connecting(monkeypa
     assert accounts.storage_backend() == "postgresql"
 
 
-def test_init_db_seeds_all_demo_accounts_idempotently(tmp_path, monkeypatch):
+def test_postgresql_ssl_transport_is_required_and_weaker_modes_are_rejected(monkeypatch):
+    monkeypatch.setenv(
+        "DATABASE_URL",
+        "postgresql://example.invalid:5432/neuronexus",
+    )
+    assert accounts._postgres_sslmode(accounts.get_database_url()) == "require"
+
+    monkeypatch.setenv(
+        "DATABASE_URL",
+        "postgresql://example.invalid:5432/neuronexus?sslmode=verify-full",
+    )
+    assert accounts._postgres_sslmode(accounts.get_database_url()) == "verify-full"
+
+    monkeypatch.setenv(
+        "DATABASE_URL",
+        "postgresql://example.invalid:5432/neuronexus?sslmode=disable",
+    )
+    with pytest.raises(ValueError, match="require sslmode"):
+        accounts._postgres_sslmode(accounts.get_database_url())
+
+
+def test_init_db_seeds_only_synthetic_participant_accounts_idempotently(tmp_path, monkeypatch):
     monkeypatch.setattr(accounts, "DB_PATH", tmp_path / "accounts.sqlite3")
     monkeypatch.delenv("DATABASE_URL", raising=False)
 
@@ -51,7 +76,6 @@ def test_init_db_seeds_all_demo_accounts_idempotently(tmp_path, monkeypatch):
     for email, expected_role in (
         ("individual@neuronexus.local", "individual"),
         ("caregiver@neuronexus.local", "caregiver"),
-        ("admin@neuronexus.local", "admin"),
     ):
         user = accounts.authenticate(f"  {email}  ", "ChangeMe123!")
         assert user["role"] == expected_role
@@ -60,7 +84,46 @@ def test_init_db_seeds_all_demo_accounts_idempotently(tmp_path, monkeypatch):
         rows = connection.execute(
             "SELECT email FROM users WHERE email LIKE '%@neuronexus.local'"
         ).fetchall()
-    assert len(rows) == 3
+    assert len(rows) == 2
+
+
+def test_legacy_shared_demo_admin_password_is_rejected(tmp_path, monkeypatch):
+    monkeypatch.setattr(accounts, "DB_PATH", tmp_path / "accounts.sqlite3")
+    monkeypatch.delenv("DATABASE_URL", raising=False)
+    accounts.init_db()
+    with accounts.connect() as connection:
+        connection.execute(
+            "UPDATE users SET email=?,role='admin' WHERE email=?",
+            (
+                accounts.LEGACY_DEMO_ADMIN_EMAIL,
+                "individual@neuronexus.local",
+            ),
+        )
+
+    assert accounts.authenticate(
+        accounts.LEGACY_DEMO_ADMIN_EMAIL,
+        accounts.DEMO_PASSWORD,
+    ) is None
+
+
+def test_demo_timeline_history_is_synthetic_and_seeded_once(tmp_path, monkeypatch):
+    monkeypatch.setattr(accounts, "DB_PATH", tmp_path / "accounts.sqlite3")
+    monkeypatch.delenv("DATABASE_URL", raising=False)
+
+    accounts.init_db()
+    accounts.init_db()
+
+    for email in (
+        "individual@neuronexus.local",
+        "caregiver@neuronexus.local",
+    ):
+        user = accounts.authenticate(email, accounts.DEMO_PASSWORD)
+        sessions = accounts.user_sessions(user["id"])
+        assert len(sessions) == 4
+        reports = [json.loads(row["summary"]) for row in sessions]
+        assert all(report["demo_history"] for report in reports)
+        assert all(report["synthetic_demo"]["notice"] for report in reports)
+        assert all(report["cognitive_tasks"]["memory_check"]["completed"] for report in reports)
 
 
 def test_quick_demo_account_recreates_missing_account(tmp_path, monkeypatch):

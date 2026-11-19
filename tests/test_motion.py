@@ -1,7 +1,36 @@
 import numpy as np
 import pandas as pd
 import pytest
-from modules.motion_analysis import analyze_motion, analyze_gait
+from modules.motion_analysis import (
+    MAX_SENSOR_SAMPLES,
+    MAX_SENSOR_UPLOAD_BYTES,
+    analyze_gait,
+    analyze_motion,
+    read_sensor_csv,
+)
+
+
+def test_sensor_csv_is_bounded_and_validated_before_analysis():
+    valid_csv = b"timestamp,ax,ay,az\n0,0,0,1\n1,0,0,1\n"
+    assert len(read_sensor_csv(valid_csv)) == 2
+
+    with pytest.raises(ValueError, match="5 MB upload limit"):
+        read_sensor_csv(b"x" * (MAX_SENSOR_UPLOAD_BYTES + 1))
+
+    large_csv = (
+        b"timestamp,ax,ay,az\n"
+        + b"0,0,0,1\n" * (MAX_SENSOR_SAMPLES + 1)
+    )
+    with pytest.raises(ValueError, match="100,000-sample limit"):
+        read_sensor_csv(large_csv)
+
+    too_many_columns = (
+        ",".join(f"column_{index}" for index in range(65))
+        + "\n"
+        + ",".join("0" for _ in range(65))
+    ).encode()
+    with pytest.raises(ValueError, match="too many columns"):
+        read_sensor_csv(too_many_columns)
 
 def test_motion_frequency_peak():
     fs=50; t=np.arange(0,10,1/fs)

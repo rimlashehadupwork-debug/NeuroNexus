@@ -1,8 +1,14 @@
 """Exploratory acceleration analysis for tremor-like motion and gait samples."""
+from io import BytesIO
+
 import numpy as np
 import pandas as pd
 from scipy.signal import detrend, find_peaks
 from .confidence import confidence_report
+
+MAX_SENSOR_UPLOAD_BYTES = 5 * 1024 * 1024
+MAX_SENSOR_SAMPLES = 100_000
+MAX_SENSOR_COLUMNS = 64
 
 AXIS_OPTIONS = [
     ("ax", "ay", "az"),
@@ -10,6 +16,29 @@ AXIS_OPTIONS = [
     ("acceleration_x", "acceleration_y", "acceleration_z"),
 ]
 TIME_OPTIONS = ("timestamp", "time", "t", "timestamp_seconds")
+
+
+def read_sensor_csv(upload_bytes: bytes) -> pd.DataFrame:
+    """Read a bounded UTF-8 sensor CSV before passing it to the analyzers."""
+    if not isinstance(upload_bytes, (bytes, bytearray, memoryview)) or not upload_bytes:
+        raise ValueError("The sensor CSV is empty.")
+    if len(upload_bytes) > MAX_SENSOR_UPLOAD_BYTES:
+        raise ValueError("Sensor CSVs must not exceed the 5 MB upload limit.")
+    try:
+        frame = pd.read_csv(
+            BytesIO(bytes(upload_bytes)),
+            nrows=MAX_SENSOR_SAMPLES + 1,
+        )
+    except (UnicodeDecodeError, pd.errors.ParserError, ValueError) as exc:
+        raise ValueError("The sensor CSV could not be read. Use a valid UTF-8 CSV.") from exc
+    if len(frame.columns) > MAX_SENSOR_COLUMNS:
+        raise ValueError("The sensor CSV contains too many columns.")
+    if len(frame) > MAX_SENSOR_SAMPLES:
+        raise ValueError("The sensor CSV exceeds the 100,000-sample limit.")
+    if frame.empty:
+        raise ValueError("The sensor CSV contains no samples.")
+    return frame
+
 
 def _read_axes(df):
     lower_map = {str(c).strip().lower(): c for c in df.columns}

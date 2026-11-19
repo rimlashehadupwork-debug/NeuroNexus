@@ -4,6 +4,7 @@ from __future__ import annotations
 import json
 import math
 from collections.abc import Mapping
+from datetime import datetime, timezone
 from html import escape
 from io import BytesIO
 
@@ -12,6 +13,7 @@ from reportlab.lib.pagesizes import letter
 from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.lib.styles import ParagraphStyle
 from reportlab.platypus import (
+    Flowable,
     Paragraph,
     SimpleDocTemplate,
     Spacer,
@@ -20,9 +22,166 @@ from reportlab.platypus import (
 )
 
 from .reporting import completed_module_explanations, humanize_feature_code, key_measurement_rows
+from .longitudinal import (
+    TIMELINE_METRICS,
+    is_synthetic_session,
+    session_metric_values,
+    session_report,
+)
 
 
 NOT_COMPLETED = "Not completed"
+_NAVY = colors.HexColor("#17364A")
+_TEAL = colors.HexColor("#16858A")
+_SAMPLE = colors.HexColor("#A96B00")
+_GRID = colors.HexColor("#DCE5EC")
+
+
+def _parse_datetime(value):
+    if isinstance(value, datetime):
+        return value
+    if not isinstance(value, str) or not value:
+        return None
+    try:
+        return datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+
+
+def _format_datetime(value):
+    parsed = _parse_datetime(value)
+    if parsed is None:
+        return _display_value(value)
+    return parsed.strftime("%b %d, %Y · %H:%M %Z").strip()
+
+
+def _datetime_sort_key(value):
+    if value.tzinfo is None:
+        value = value.replace(tzinfo=timezone.utc)
+    return value.timestamp()
+
+
+def _history_records(history, session_id=None, limit=8):
+    records = []
+    for session in history or ():
+        report = session_report(session)
+        timestamp = session.get("created_at") or report.get("created_utc")
+        records.append({
+            "id": session.get("id"),
+            "timestamp": timestamp,
+            "date": _parse_datetime(timestamp),
+            "type": report.get("workflow_mode") or "Not recorded",
+            "assessments": list(completed_module_explanations(report)),
+            "measurements": session_metric_values(report),
+            "synthetic": is_synthetic_session(report),
+        })
+    records.sort(
+        key=lambda item: _datetime_sort_key(item["date"])
+        if item["date"] else float("-inf"),
+        reverse=True,
+    )
+    if session_id is not None:
+        selected = next(
+            (item for item in records if str(item["id"]) == str(session_id)),
+            None,
+        )
+        recent = records[:limit]
+        if selected and selected not in recent:
+            recent = [selected, *recent[:max(0, limit - 1)]]
+            recent.sort(
+                key=lambda item: _datetime_sort_key(item["date"])
+                if item["date"] else float("-inf"),
+                reverse=True,
+            )
+        return recent
+    return records[:limit]
+
+
+class _HistoryLineChart(Flowable):
+    """Draw a small, print-friendly chart of recorded history values."""
+
+    def __init__(self, title, points):
+        super().__init__()
+        self.title = title
+        self.points = points
+        self.height = 165
+
+    def wrap(self, available_width, available_height):
+        self.width = available_width
+        return self.width, self.height
+
+    def draw(self):
+        canvas = self.canv
+        left, right = 48, self.width - 14
+        bottom, top = 36, self.height - 28
+        chart_width, chart_height = right - left, top - bottom
+        values = [point["value"] for point in self.points]
+        minimum, maximum = min(values), max(values)
+        spread = maximum - minimum
+        padding = spread * 0.1 if spread else max(abs(minimum) * 0.1, 1.0)
+        minimum -= padding
+        maximum += padding
+
+        canvas.setFillColor(_NAVY)
+        canvas.setFont("Helvetica-Bold", 9)
+        canvas.drawString(0, self.height - 12, self.title)
+        canvas.setStrokeColor(_GRID)
+        canvas.setLineWidth(0.5)
+        for index in range(4):
+            ratio = index / 3
+            y = bottom + ratio * chart_height
+            value = minimum + ratio * (maximum - minimum)
+            canvas.line(left, y, right, y)
+            canvas.setFillColor(_NAVY)
+            canvas.setFont("Helvetica", 7)
+            canvas.drawRightString(left - 5, y - 2, f"{value:.3g}")
+
+        dated = [point["date"] for point in self.points if point["date"]]
+        ordinal_values = [value.toordinal() for value in dated]
+        first_day = min(ordinal_values) if ordinal_values else 0
+        last_day = max(ordinal_values) if ordinal_values else 0
+        use_index = first_day == last_day
+        x_values = []
+        for index, point in enumerate(self.points):
+            if use_index:
+                ratio = index / max(1, len(self.points) - 1)
+            else:
+                ratio = (point["date"].toordinal() - first_day) / (last_day - first_day)
+            x_values.append(left + ratio * chart_width)
+        y_values = [
+            bottom + (point["value"] - minimum) / (maximum - minimum) * chart_height
+            for point in self.points
+        ]
+
+        canvas.setStrokeColor(_TEAL)
+        canvas.setLineWidth(1.5)
+        for index in range(1, len(self.points)):
+            canvas.line(x_values[index - 1], y_values[index - 1], x_values[index], y_values[index])
+        for index, point in enumerate(self.points):
+            canvas.setFillColor(_SAMPLE if point["synthetic"] else _TEAL)
+            canvas.circle(x_values[index], y_values[index], 3, stroke=0, fill=1)
+
+        label_indices = {0, len(self.points) - 1}
+        if len(self.points) > 3:
+            label_indices.add(len(self.points) // 2)
+        canvas.setFillColor(_NAVY)
+        canvas.setFont("Helvetica", 7)
+        for index in sorted(label_indices):
+            timestamp = self.points[index]["date"]
+            label = timestamp.strftime("%m/%d/%y") if timestamp else f"Session {index + 1}"
+            canvas.drawCentredString(x_values[index], bottom - 13, label)
+
+        legend_y = 8
+        canvas.setFillColor(_TEAL)
+        canvas.circle(left, legend_y + 2, 3, stroke=0, fill=1)
+        canvas.setFillColor(_NAVY)
+        canvas.drawString(left + 7, legend_y, "Saved session")
+        if any(point["synthetic"] for point in self.points):
+            legend_x = left + 85
+            canvas.setFillColor(_SAMPLE)
+            canvas.circle(legend_x, legend_y + 2, 3, stroke=0, fill=1)
+            canvas.setFillColor(_NAVY)
+            canvas.drawString(legend_x + 7, legend_y, "DEMO / SAMPLE")
 
 
 def _display_value(value):
@@ -138,36 +297,113 @@ def _research_model_rows(model_status):
     return rows
 
 
-def make_pdf(name, report, model_status=None):
-    report = report or {}
+def _draw_page_header_footer(canvas, doc):
+    canvas.saveState()
+    page_width, page_height = letter
+    canvas.setFillColor(_TEAL)
+    canvas.setFont("Helvetica-Bold", 9)
+    canvas.drawString(42, page_height - 25, "NEURONEXUS")
+    canvas.setStrokeColor(_GRID)
+    canvas.setLineWidth(0.7)
+    canvas.line(42, page_height - 32, page_width - 42, page_height - 32)
+    canvas.line(42, 30, page_width - 42, 30)
+    canvas.setFillColor(_NAVY)
+    canvas.setFont("Helvetica", 7.5)
+    canvas.drawString(42, 18, "Research screening summary · Not a diagnosis")
+    canvas.drawRightString(page_width - 42, 18, f"Page {doc.page}")
+    canvas.restoreState()
+
+
+def _recorded_feature_rows(report):
+    return [
+        row for row in key_measurement_rows(report)
+        if row["Recorded value"] != NOT_COMPLETED
+    ]
+
+
+def make_pdf(
+    name,
+    report,
+    model_status=None,
+    *,
+    session_id=None,
+    session_created_at=None,
+    history=None,
+    wellness_plan=None,
+):
+    if report is None:
+        report = {}
+    if not isinstance(report, Mapping):
+        raise ValueError("A screening report must be an object.")
+    if session_id is None:
+        session_id = report.get("session_id")
+    history_records = _history_records(history, session_id=session_id)
     out = BytesIO()
     doc = SimpleDocTemplate(
         out,
         pagesize=letter,
         rightMargin=42,
         leftMargin=42,
-        topMargin=42,
+        topMargin=52,
         bottomMargin=42,
         pageCompression=0,
     )
     styles = getSampleStyleSheet()
+    styles["Title"].fontName = "Helvetica-Bold"
+    styles["Title"].textColor = _NAVY
+    styles["Title"].fontSize = 21
+    styles["Title"].leading = 26
+    styles["Heading2"].fontName = "Helvetica-Bold"
+    styles["Heading2"].textColor = _TEAL
+    styles["Heading2"].spaceBefore = 12
+    styles["Heading2"].spaceAfter = 6
+    styles["Heading3"].textColor = _NAVY
+    styles["BodyText"].fontName = "Helvetica"
+    styles["BodyText"].textColor = _NAVY
+    styles["BodyText"].leading = 13
+    consent_flags = report.get("consent_flags") or {}
+    participant_identifier = None
+    if consent_flags.get("report_participant_identifier") is True:
+        participant_identifier = report.get("participant_identifier") or name
+    completed_modules = completed_module_explanations(report)
+    metadata_rows = [
+        ["Session ID", _display_value(session_id) if session_id is not None else "Not assigned — report not saved"],
+        ["Assessment date and time", _format_datetime(session_created_at or report.get("created_utc"))],
+        ["Participant identifier", participant_identifier or "Not included (privacy)"],
+        ["Screening type", _display_value(report.get("workflow_mode"))],
+        [
+            "Session status",
+            "Assessment results recorded"
+            if completed_modules
+            else "Incomplete — no completed assessments recorded",
+        ],
+    ]
     story = [
-        _paragraph("NeuroNexus — Screening Session Summary", styles["Title"]),
-        Spacer(1, 8),
-        _paragraph(f"Participant: {name}", styles["Normal"]),
-        _paragraph(f"Generated: {report.get('created_utc')}", styles["Normal"]),
-        Spacer(1, 10),
+        _paragraph("NeuroNexus", styles["Title"]),
+        _paragraph("Screening session report", styles["Heading2"]),
+        _table([["Report details", "Recorded value"], *metadata_rows], [180, 348]),
+        Spacer(1, 12),
         _how_to_read_box(report, styles, doc.width),
         Spacer(1, 14),
         _paragraph(
-            "Important: This is an experimental research summary, not a diagnosis "
-            "or disease-risk estimate. It cannot confirm or rule out Alzheimer's "
-            "disease or Parkinson's disease. Discuss symptoms or concerns with a "
-            "qualified clinician.",
+            "This research screening summary is not a diagnosis and cannot confirm "
+            "or rule out a neurological condition. Clinical interpretation requires "
+            "a qualified healthcare professional.",
             styles["BodyText"],
         ),
         Spacer(1, 14),
     ]
+
+    if is_synthetic_session(report):
+        story[2:2] = [
+            _paragraph("DEMO / SAMPLE — Not a patient record", styles["Heading2"]),
+            _paragraph(
+                report.get("demo_notice")
+                or "Synthetic sample data; not a patient record.",
+                styles["BodyText"],
+            ),
+            Spacer(1, 8),
+        ]
 
     synthetic_demo = report.get("synthetic_demo")
     if synthetic_demo:
@@ -240,6 +476,8 @@ def make_pdf(name, report, model_status=None):
     speech = report.get("alzheimers_speech_features") or {}
     reaction = cognitive.get("reaction_time") or {}
     reaction_completed = bool(reaction.get("trials", 0))
+    memory = cognitive.get("memory_check") or {}
+    memory_completed = bool(memory.get("completed"))
     assessment_rows = [["Assessment", "Status", "Technical quality / note"]]
     for label, key in (
         ("Voice", "voice"),
@@ -275,6 +513,11 @@ def make_pdf(name, report, model_status=None):
             "Completed" if reaction_completed else NOT_COMPLETED,
             "Browser/device timing is approximate" if reaction_completed else NOT_COMPLETED,
         ],
+        [
+            "Memory check",
+            "Completed" if memory_completed else NOT_COMPLETED,
+            "Prototype timed word recall; not diagnostic" if memory_completed else NOT_COMPLETED,
+        ],
     ])
     story.extend([
         _paragraph("Assessment summary", styles["Heading2"]),
@@ -297,6 +540,62 @@ def make_pdf(name, report, model_status=None):
             Spacer(1, 10),
         ])
 
+    voice = report.get("voice") or {}
+    story.append(_paragraph("Audio assessment summary", styles["Heading2"]))
+    if voice:
+        audio_summary = [
+            ["Measurement", "Recorded value"],
+            ["Recording duration", _display_value(voice.get("duration_seconds"))],
+            ["Median pitch", _display_value(voice.get("pitch_median_hz"))],
+            ["Signal quality", _display_value((voice.get("quality") or {}).get("label"))],
+            ["Signal quality score", _display_value((voice.get("quality") or {}).get("score"))],
+        ]
+        story.extend([
+            _table(audio_summary, [200, 328]),
+            Spacer(1, 10),
+            _paragraph("Audio processing information", styles["Heading3"]),
+        ])
+        processing_fields = (
+            ("Source sample rate", "source_sample_rate", "Hz"),
+            ("Source channels", "source_channels", "channels"),
+            ("Source duration", "source_duration_seconds", "seconds"),
+            ("Analysis sample rate", "sample_rate", "Hz"),
+            ("Conversion method", "conversion_method", ""),
+        )
+        processing_rows = [["Processing detail", "Recorded value"]]
+        for label, key, unit in processing_fields:
+            value = voice.get(key)
+            if value is not None:
+                processing_rows.append([
+                    label,
+                    f"{_display_value(value)} {unit}".strip(),
+                ])
+        if len(processing_rows) > 1:
+            story.append(_table(processing_rows, [200, 328]))
+        else:
+            story.append(_paragraph(
+                "Processing metadata is not available in the saved report.",
+                styles["BodyText"],
+            ))
+    else:
+        story.append(_paragraph("No audio assessment was recorded.", styles["BodyText"]))
+    story.append(Spacer(1, 12))
+
+    model_outputs = report.get("model_outputs")
+    story.extend([
+        _paragraph("Participant-specific model output", styles["Heading2"]),
+        _paragraph(
+            _display_value(model_outputs)
+            if model_outputs
+            else (
+                "No participant-specific model output is recorded for this session. "
+                "Research model availability and cohort metrics are not individual results."
+            ),
+            styles["BodyText"],
+        ),
+        Spacer(1, 8),
+    ])
+
     if model_status:
         story.extend([
             _paragraph("Research model status", styles["Heading2"]),
@@ -312,34 +611,41 @@ def make_pdf(name, report, model_status=None):
         ])
 
     story.extend([
-        _paragraph("Key measurement breakdown", styles["Heading2"]),
         _paragraph(
-            "Recorded values are descriptive. No validated healthy reference "
-            "intervals or individual risk flags are available for these measurements.",
+            "Features actually extracted / Key measurement breakdown",
+            styles["Heading2"],
+        ),
+        _paragraph(
+            "Only measurements recorded in this report are listed. Missing values "
+            "are not estimated; no validated healthy reference ranges are available.",
             styles["BodyText"],
         ),
         Spacer(1, 6),
     ])
-    measurements = key_measurement_rows(report)
-    measurement_table = [[
-        "Domain",
-        "Measurement",
-        "Recorded value",
-        "Reference",
-        "Interpretation",
-    ]]
-    for row in measurements:
-        measurement_table.append([
-            _display_value(row["Domain"]),
-            _display_value(row["Measurement"]),
-            _display_value(row["Recorded value"]),
-            _display_value(row["Reference range"]),
-            _display_value(row["Interpretation"]),
-        ])
-    story.extend([
-        _table(measurement_table, [72, 120, 100, 112, 124], font_size=7),
-        Spacer(1, 14),
-    ])
+    measurements = _recorded_feature_rows(report)
+    if measurements:
+        measurement_table = [[
+            "Domain",
+            "Measurement",
+            "Recorded value",
+            "Reference",
+            "Interpretation",
+        ]]
+        for row in measurements:
+            measurement_table.append([
+                _display_value(row["Domain"]),
+                _display_value(row["Measurement"]),
+                _display_value(row["Recorded value"]),
+                _display_value(row["Reference range"]),
+                _display_value(row["Interpretation"]),
+            ])
+        story.append(_table(measurement_table, [72, 120, 100, 112, 124], font_size=7))
+    else:
+        story.append(_paragraph(
+            "No feature measurements were recorded for this session.",
+            styles["BodyText"],
+        ))
+    story.append(Spacer(1, 14))
 
     story.append(_paragraph("Recorded signal details", styles["Heading2"]))
     for key in ("voice", "resting_motion", "gait"):
@@ -364,11 +670,152 @@ def make_pdf(name, report, model_status=None):
         ))
         story.append(Spacer(1, 6))
 
-    story.append(_paragraph("Clinician Discussion Guide", styles["Heading2"]))
+    story.append(_paragraph("Memory assessment", styles["Heading2"]))
+    if memory_completed:
+        memory_rows = [["Memory task result", "Recorded value"]]
+        for label, key, unit in (
+            ("Items recalled", "items_recalled", "items"),
+            ("Items presented", "items_presented", "words"),
+            ("Recall percentage", "recall_percentage", "%"),
+            ("Recall entry time", "recall_latency_seconds", "seconds"),
+            ("Completion time", "completion_time_seconds", "seconds"),
+        ):
+            value = memory.get(key)
+            if value is not None:
+                memory_rows.append([label, f"{_display_value(value)} {unit}".strip()])
+        story.extend([
+            _table(memory_rows, [200, 328]),
+            _paragraph(
+                "This prototype task is descriptive, not a validated clinical assessment.",
+                styles["BodyText"],
+            ),
+        ])
+    else:
+        story.append(_paragraph(
+            "No completed memory assessment was recorded for this session.",
+            styles["BodyText"],
+        ))
+    story.append(Spacer(1, 10))
+
+    story.append(_paragraph("Brain-health session history", styles["Heading2"]))
+    story.append(_paragraph(
+        "History contains saved sessions only. Differences are descriptive and do not "
+        "indicate disease progression or clinical significance.",
+        styles["BodyText"],
+    ))
+    if history_records:
+        history_table = [[
+            "Assessment date",
+            "Session ID",
+            "Type",
+            "Completed assessments",
+            "Data label",
+        ]]
+        for record in history_records:
+            history_table.append([
+                _format_datetime(record["timestamp"]),
+                _display_value(record["id"]),
+                _display_value(record["type"]),
+                ", ".join(record["assessments"]) or NOT_COMPLETED,
+                "DEMO / SAMPLE" if record["synthetic"] else "Saved session",
+            ])
+        story.extend([
+            _table(history_table, [92, 48, 70, 207, 111], font_size=7),
+            Spacer(1, 8),
+        ])
+        chart_count = 0
+        for label in TIMELINE_METRICS:
+            points = [
+                {
+                    "date": record["date"],
+                    "value": record["measurements"][label],
+                    "synthetic": record["synthetic"],
+                }
+                for record in history_records
+                if record["date"] is not None
+                and label in record["measurements"]
+            ]
+            if len(points) < 2:
+                continue
+            points.sort(key=lambda point: _datetime_sort_key(point["date"]))
+            unit = label.rsplit("(", 1)[-1].rstrip(")")
+            story.append(_HistoryLineChart(f"{label} · descriptive history", points))
+            story.append(_paragraph(
+                f"Recorded values in {unit}; no clinical direction or significance is inferred.",
+                styles["BodyText"],
+            ))
+            story.append(Spacer(1, 8))
+            chart_count += 1
+            if chart_count >= 2:
+                break
+        if not chart_count:
+            story.append(_paragraph(
+                "A history chart is not shown because fewer than two dated values "
+                "were available for the same measurement.",
+                styles["BodyText"],
+            ))
+    else:
+        story.append(_paragraph(
+            "No saved assessment history was available when this report was generated.",
+            styles["BodyText"],
+        ))
+    story.append(Spacer(1, 10))
+
+    story.append(_paragraph("Wellness recommendations", styles["Heading2"]))
+    if wellness_plan:
+        goals = wellness_plan.get("goals") or []
+        if goals:
+            story.append(_paragraph(
+                "Selected goals: " + ", ".join(map(str, goals)),
+                styles["BodyText"],
+            ))
+        recommendations = wellness_plan.get("recommendations") or []
+        if recommendations:
+            for recommendation in recommendations:
+                story.append(_paragraph(f"- {recommendation}", styles["BodyText"]))
+        else:
+            story.append(_paragraph(
+                "No tailored suggestions were generated from the saved preferences.",
+                styles["BodyText"],
+            ))
+        story.append(_paragraph(
+            "These are optional, general educational ideas based on goals and "
+            "preferences the user chose to save. They are not medical advice.",
+            styles["BodyText"],
+        ))
+    else:
+        story.append(_paragraph(
+            "No saved wellness plan was available; no individualized wellness "
+            "recommendations are included.",
+            styles["BodyText"],
+        ))
+    story.append(Spacer(1, 10))
+
+    story.append(_paragraph("Limitations", styles["Heading2"]))
+    story.extend([
+        _paragraph(
+            report.get("purpose")
+            or "Measurements are exploratory and descriptive, not a diagnosis or disease-risk estimate.",
+            styles["BodyText"],
+        ),
+        _paragraph(
+            "Results may vary with device, recording conditions, task familiarity, "
+            "language, fatigue, and other context. Research model metrics, when shown, "
+            "describe cohort evaluation and are not personal predictions.",
+            styles["BodyText"],
+        ),
+        Spacer(1, 8),
+    ])
+
+    story.append(_paragraph(
+        "Clinical review guidance / Clinician Discussion Guide",
+        styles["Heading2"],
+    ))
     movement_recorded = bool(report.get("resting_motion") or report.get("gait"))
     cognition_recorded = bool(
         clock.get("completed")
         or reaction_completed
+        or memory_completed
         or report.get("clock_drawing_measurements")
     )
     domain_rows = [
@@ -389,10 +836,27 @@ def make_pdf(name, report, model_status=None):
         ),
         Spacer(1, 10),
         _paragraph(
-            "Seek urgent medical care for sudden new neurological symptoms.",
+            "For persistent concerns, discuss symptoms and changes with a qualified "
+            "healthcare professional. Seek immediate medical care for sudden new "
+            "neurological symptoms.",
             styles["BodyText"],
         ),
     ])
 
-    doc.build(story)
+    story.extend([
+        _paragraph("Privacy statement", styles["Heading2"]),
+        _paragraph(
+            "This export includes the derived measurements and optional saved "
+            "history or wellness recommendations shown above; it does not include "
+            "raw audio or sensor uploads. Participant identity is omitted unless "
+            "separately permitted. Review this document before sharing it.",
+            styles["BodyText"],
+        ),
+    ])
+
+    doc.build(
+        story,
+        onFirstPage=_draw_page_header_footer,
+        onLaterPages=_draw_page_header_footer,
+    )
     return out.getvalue()

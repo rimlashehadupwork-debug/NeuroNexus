@@ -29,19 +29,147 @@ except ImportError:
 
 TARGET_SR = 16000
 MIN_VOICED_SECONDS = 3.0
+PRAAT_FEATURE_EXPLANATIONS = {
+    "jitter_local": (
+        "Average local cycle-to-cycle period variation.",
+        "A dataset-compatible descriptor of periodic timing in a sustained vowel.",
+    ),
+    "jitter_local_abs": (
+        "Absolute local cycle-to-cycle period variation in seconds.",
+        "A dataset-compatible descriptor of periodic timing in a sustained vowel.",
+    ),
+    "jitter_rap": (
+        "Relative average perturbation over three adjacent periods.",
+        "A dataset-compatible descriptor of periodic timing in a sustained vowel.",
+    ),
+    "jitter_ppq5": (
+        "Five-period pitch-period quotient variation.",
+        "A dataset-compatible descriptor of periodic timing in a sustained vowel.",
+    ),
+    "jitter_ddp": (
+        "Derived difference-of-differences period variation.",
+        "A dataset-compatible descriptor of periodic timing in a sustained vowel.",
+    ),
+    "shimmer_local": (
+        "Local cycle-to-cycle amplitude variation.",
+        "A dataset-compatible descriptor of amplitude variation in a sustained vowel.",
+    ),
+    "shimmer_local_db": (
+        "Local cycle-to-cycle amplitude variation in decibels.",
+        "A dataset-compatible descriptor of amplitude variation in a sustained vowel.",
+    ),
+    "shimmer_apq3": (
+        "Amplitude perturbation quotient averaged over three periods.",
+        "A dataset-compatible descriptor of amplitude variation in a sustained vowel.",
+    ),
+    "shimmer_apq5": (
+        "Amplitude perturbation quotient averaged over five periods.",
+        "A dataset-compatible descriptor of amplitude variation in a sustained vowel.",
+    ),
+    "shimmer_apq11": (
+        "Amplitude perturbation quotient averaged over eleven periods.",
+        "A dataset-compatible descriptor of amplitude variation in a sustained vowel.",
+    ),
+    "shimmer_dda": (
+        "Derived difference-of-differences amplitude variation.",
+        "A dataset-compatible descriptor of amplitude variation in a sustained vowel.",
+    ),
+    "ac": (
+        "Mean strength reported by the Praat pitch tracker for voiced frames.",
+        "Provides context about periodicity in the extracted vowel signal.",
+    ),
+    "nth": (
+        "Noise-to-harmonics ratio derived from the harmonicity measurement.",
+        "Describes the signal's estimated periodic and noise components.",
+    ),
+    "htn": (
+        "Mean harmonicity estimate in decibels.",
+        "Describes the signal's estimated periodic and noise components.",
+    ),
+    "median_pitch": (
+        "Median estimated fundamental frequency of voiced frames.",
+        "Summarizes pitch estimates for the sustained-vowel task.",
+    ),
+    "mean_pitch": (
+        "Mean estimated fundamental frequency of voiced frames.",
+        "Summarizes pitch estimates for the sustained-vowel task.",
+    ),
+    "std_pitch": (
+        "Standard deviation of estimated fundamental frequency.",
+        "Describes variation in pitch estimates within this recording.",
+    ),
+    "min_pitch": (
+        "Minimum estimated fundamental frequency of voiced frames.",
+        "Summarizes pitch estimates for the sustained-vowel task.",
+    ),
+    "max_pitch": (
+        "Maximum estimated fundamental frequency of voiced frames.",
+        "Summarizes pitch estimates for the sustained-vowel task.",
+    ),
+    "num_pulses": (
+        "Number of pulse events identified by the Praat point-process analysis.",
+        "Describes the pulse sequence available to the feature extractor.",
+    ),
+    "num_periods": (
+        "Number of periods identified between pulse events.",
+        "Describes the pulse sequence available to the feature extractor.",
+    ),
+    "mean_period": (
+        "Mean duration of identified periods in seconds.",
+        "Describes timing in the sustained-vowel pulse sequence.",
+    ),
+    "std_period": (
+        "Standard deviation of identified period durations in seconds.",
+        "Describes timing variability in the sustained-vowel pulse sequence.",
+    ),
+    "frac_unvoiced": (
+        "Fraction of pitch frames classified as unvoiced.",
+        "Describes how much of the task signal lacked a voiced pitch estimate.",
+    ),
+    "num_voice_breaks": (
+        "Count of interior unvoiced segments between voiced regions.",
+        "Describes interruptions in the extracted pitch track.",
+    ),
+    "degree_voice_breaks": (
+        "Fraction of pitch frames in interior unvoiced segments.",
+        "Describes interruptions in the extracted pitch track.",
+    ),
+}
 
 
-def to_wav_mono16k(audio_bytes: bytes) -> tuple[np.ndarray, int]:
+def _emit(progress_callback, stage, state, message):
+    if progress_callback is not None:
+        progress_callback(stage, state, message)
+
+
+def to_wav_mono16k(
+    audio_bytes: bytes,
+    progress_callback=None,
+) -> tuple[np.ndarray, int]:
     """Decode any supported audio format to mono 16 kHz float waveform."""
+    _emit(progress_callback, "conversion", "running", "Preparing the sustained-vowel signal.")
     audio, sr = sf.read(BytesIO(audio_bytes), dtype="float32", always_2d=False)
     if audio.ndim == 2:
         audio = audio.mean(axis=1)
     audio = np.asarray(audio, dtype=np.float32)
     if sr != TARGET_SR:
         audio = librosa.resample(audio, orig_sr=sr, target_sr=TARGET_SR)
+    _emit(
+        progress_callback,
+        "conversion",
+        "complete",
+        f"Prepared mono audio at {TARGET_SR} Hz for the existing Praat feature settings.",
+    )
+    _emit(progress_callback, "preprocessing", "running", "Applying the existing peak normalization.")
     peak = np.max(np.abs(audio))
     if peak > 0:
         audio = (audio / peak * 0.9).astype(np.float32)  # gentle normalization
+    _emit(
+        progress_callback,
+        "preprocessing",
+        "complete",
+        "Applied the same peak normalization used by this research pathway.",
+    )
     return audio, TARGET_SR
 
 
@@ -118,13 +246,33 @@ def _praat_features(wav: np.ndarray, sr: int) -> dict:
     }
 
 
-def extract_voice_features(audio_bytes: bytes) -> tuple[np.ndarray, dict]:
+def extract_voice_features(
+    audio_bytes: bytes,
+    progress_callback=None,
+) -> tuple[np.ndarray, dict]:
     """WAV conversion + 26-feature extraction. Returns (wav, features)."""
-    wav, sr = to_wav_mono16k(audio_bytes)
-    return wav, _praat_features(wav, sr)
+    wav, sr = to_wav_mono16k(audio_bytes, progress_callback)
+    _emit(
+        progress_callback,
+        "feature_extraction",
+        "running",
+        "Extracting the existing Praat-compatible sustained-vowel features.",
+    )
+    features = _praat_features(wav, sr)
+    _emit(
+        progress_callback,
+        "feature_extraction",
+        "complete",
+        f"Extracted {len(features)} task-specific features.",
+    )
+    return wav, features
 
 
-def run_symptom_pattern_analysis(audio_bytes: bytes, models_dir: str | Path = "models") -> dict:
+def run_symptom_pattern_analysis(
+    audio_bytes: bytes,
+    models_dir: str | Path = "models",
+    progress_callback=None,
+) -> dict:
     """Full gated pipeline. Returns a dict safe to render in the UI.
 
     Gates: decodable WAV, >=5 s, passes the app's quality checks, enough voiced
@@ -134,17 +282,47 @@ def run_symptom_pattern_analysis(audio_bytes: bytes, models_dir: str | Path = "m
     from .audio_analysis import analyze_audio_bytes  # existing quality checks
     from .model_registry import load_parkinson_model
 
+    _emit(
+        progress_callback,
+        "validation",
+        "running",
+        "Checking the sustained-vowel sample and technical recording quality.",
+    )
     quality = analyze_audio_bytes(audio_bytes)  # raises if undecodable/too short
-    wav, feats = extract_voice_features(audio_bytes)
+    _emit(
+        progress_callback,
+        "validation",
+        "complete",
+        "Audio decoded and existing technical quality checks completed.",
+    )
+    wav, feats = extract_voice_features(audio_bytes, progress_callback)
 
+    _emit(
+        progress_callback,
+        "model_inference",
+        "running",
+        "Loading the existing research classifier and computing its output.",
+    )
     pipeline, feature_columns, threshold = load_parkinson_model(models_dir)
     row = pd.DataFrame([feats], columns=None)[feature_columns]
     prob = float(pipeline.predict_proba(row)[0, 1])
     pred = int(prob >= threshold)
+    _emit(
+        progress_callback,
+        "model_inference",
+        "complete",
+        "The existing classifier produced a research pattern comparison.",
+    )
 
+    _emit(
+        progress_callback,
+        "results_preparation",
+        "running",
+        "Assembling descriptive features, classifier context, and limitations.",
+    )
     meta_path = Path(models_dir) / "parkinson_voice_research_metadata.json"
     meta = json.loads(meta_path.read_text(encoding="utf-8")) if meta_path.exists() else {}
-    return {
+    result = {
         "compatible_features": feats,
         "recording_quality": quality["quality"],
         "experimental_output": {
@@ -166,3 +344,10 @@ def run_symptom_pattern_analysis(audio_bytes: bytes, models_dir: str | Path = "m
                                 "Consult a neurologist for any health concern."),
         "validation_stage": 2,
     }
+    _emit(
+        progress_callback,
+        "results_preparation",
+        "complete",
+        "Research output and its limitations are ready.",
+    )
+    return result
