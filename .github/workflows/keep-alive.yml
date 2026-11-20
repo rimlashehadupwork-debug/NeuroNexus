@@ -10,7 +10,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Wake up Streamlit app
-        uses: gpenessot/streamlit-keep-alive@v1
+        uses: gpenessot/streamlit-keep-alive@main
         with:
           app-urls: |
             https://neuronexus18.streamlit.app/
